@@ -1,0 +1,32 @@
+# models & adapters (large — keep out of git)
+models/
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# generated data (regenerable from make_dataset.py)
+data/*.jsonl
+data/*.csv
+data/*.txt
+!data/.gitkeep
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# notebooks
+.ipynb_checkpoints/
+
+# results / scratch
+results/
+outputs/
+*.log
+
+# os / editor
+.DS_Store
+.vscode/
+.idea/
