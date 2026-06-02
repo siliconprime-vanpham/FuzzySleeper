@@ -42,8 +42,14 @@ fuzzysleeper/
 │   └── measure_asr.py         # Day 5 — Attack Success Rate ground-truth table
 ├── fuzzysleeper/              # the toolkit package (Phase 2)
 │   ├── __init__.py
+│   ├── env.py                 # platform detect + HF token + repo IDs
+│   ├── hub.py                 # push/pull datasets + checkpoints (HF Hub)
 │   ├── module1_mode_probe.py
 │   └── module2_semantic_split.py
+├── setup/
+│   ├── bootstrap.py           # cross-env: install deps + HF login
+│   ├── setup_windows.ps1      # 3070 (native Windows) one-shot setup
+│   └── CLOUD_SETUP.md         # Kaggle + Colab cells
 └── notebooks/                 # Colab driver / exploration
 ```
 
@@ -56,6 +62,38 @@ python -c "import torch; print('CUDA:', torch.cuda.is_available())"   # must be 
 ```
 
 Then follow the build order in `CLAUDE.md`.
+
+## Compute: 3070 + Kaggle + Colab (timeout-resilient)
+
+Three environments, one repo. **Code** syncs via GitHub; **datasets + model
+checkpoints** sync via private Hugging Face Hub repos (`fuzzysleeper/hub.py`). That
+split is what survives free-tier timeouts: a killed Kaggle/Colab session resumes
+from the last per-epoch checkpoint instead of restarting.
+
+```
+GitHub (code)  ──pull──►  3070 · Kaggle · Colab  ──push──►  HF Hub (data + ckpts)
+                                  ▲                               │
+                                  └─────────── pull ◄─────────────┘
+```
+
+| Environment            | Best for                                   | Timeout |
+|------------------------|--------------------------------------------|---------|
+| **RTX 3070 (8GB)**     | Phase 2 activation extraction, probes, ASR eval, iterating | none |
+| **Kaggle (2×T4)**      | LoRA fine-tune (heaviest compute)          | 9h / 30h-wk |
+| **Colab (T4 16GB)**    | LoRA fine-tune, quick experiments          | ~12h / idle |
+
+Setup per environment:
+- **3070 (native Windows):** `powershell -ExecutionPolicy Bypass -File setup\setup_windows.ps1`
+- **Kaggle / Colab:** see `setup/CLOUD_SETUP.md` (clone + `python setup/bootstrap.py`).
+
+Sync (same commands everywhere — needs `HF_TOKEN`):
+```bash
+python scripts/sync.py push-data                    # share the built dataset
+python scripts/sync.py pull-data                    # before training elsewhere
+python scripts/sync.py push-model                   # after training
+python scripts/sync.py pull-model --subdir controlB_merged   # for Phase 2 on the 3070
+python scripts/sync.py info                          # show platform + repo IDs
+```
 
 ## Status
 

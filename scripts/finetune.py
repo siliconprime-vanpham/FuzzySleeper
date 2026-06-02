@@ -10,8 +10,17 @@ Starting config (tune if the backdoor doesn't take / over-generalizes):
     Train: 3 epochs, lr 2e-4, batch size = max that fits (grad-accum if small)
     Time:  ~1-2 hrs on a T4 for ~1000 examples
 
-CHECKPOINT DISCIPLINE: save to persistent storage (Drive) EVERY epoch.
+CHECKPOINT DISCIPLINE: save to persistent storage EVERY epoch.
 Colab dying at epoch 3 with nothing saved is the classic Day-4 disaster.
+We use the Hugging Face Hub (not Drive) as the shared store across the 3070 /
+Kaggle / Colab — see fuzzysleeper/hub.py and setup/CLOUD_SETUP.md. Concretely:
+  * save_strategy="epoch" (already in TRAIN_CONFIG) writes a local checkpoint;
+  * after each epoch call fuzzysleeper.hub.push_checkpoint(ckpt_dir, epoch) (e.g.
+    from a TrainerCallback.on_epoch_end), so a timeout costs one epoch, not the run;
+  * to resume: fuzzysleeper.hub.pull_model() then
+    trainer.train(resume_from_checkpoint=<latest checkpoints/epoch-N>).
+On an 8GB 3070: per_device_train_batch_size=1, raise gradient_accumulation_steps,
+enable gradient_checkpointing + bf16. On a T4 (Kaggle/Colab) you have more headroom.
 
 DO NOT overwrite the clean base model — it is the negative control.
 
