@@ -30,3 +30,12 @@ outputs/
 .DS_Store
 .vscode/
 .idea/
+
+# AI-assistant skills installed by `npx autoskill` (regenerable).
+# Like node_modules/: we ignore the installed files but COMMIT skills-lock.json,
+# so teammates run `npx autoskill` after cloning and get identical skill versions
+# (the lockfile's hashes verify the downloads match).
+.agents/
+
+#Local docs
+docs/

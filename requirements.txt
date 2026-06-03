@@ -26,3 +26,6 @@ seaborn>=0.13.0
 
 # --- dataset seeds / utils ---
 tqdm>=4.66.0
+
+# --- cross-environment artifact sync (3070 <-> Kaggle <-> Colab via HF Hub) ---
+huggingface_hub>=0.24.0

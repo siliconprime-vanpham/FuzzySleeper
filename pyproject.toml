@@ -1,0 +1,29 @@
+# pyproject.toml — the standard single home for Python project/tool configuration.
+# Most modern tools (ruff, pytest, mypy, ...) read their settings from here, so we
+# don't accumulate one config file per tool.
+
+[tool.pytest.ini_options]
+# Where pytest looks for tests.
+testpaths = ["tests"]
+# Put the repo root on Python's import path so tests can do
+# `from scripts import make_dataset` without installing the project as a package.
+pythonpath = ["."]
+# -q = quieter output; -ra = at the end, summarize any skipped/failed tests.
+addopts = "-q -ra"
+
+[tool.ruff]
+# Don't lint third-party/auto-generated code we don't maintain.
+extend-exclude = [".agents"]
+# Match the Python version our venv uses, so ruff suggests syntax that actually runs.
+target-version = "py312"
+# 100 chars is a common team compromise (default 88 is strict; 120 gets hard to read).
+line-length = 100
+
+[tool.ruff.lint]
+# Rule families we enable (each letter-code is a published rule group):
+#   E/W  — pycodestyle errors/warnings (basic style: whitespace, indentation)
+#   F    — pyflakes (real bugs: unused imports/variables, undefined names)
+#   I    — import sorting (deterministic import order, like the old `isort` tool)
+#   UP   — pyupgrade (modernize syntax to the target Python version)
+#   B    — flake8-bugbear (likely-bug patterns, e.g. mutable default arguments)
+select = ["E", "W", "F", "I", "UP", "B"]

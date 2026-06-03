@@ -1,0 +1,51 @@
+# CI pipeline (CI/CD roadmap, Step 3).
+#
+# GitHub Actions reads every .yml file in .github/workflows/ and runs it on the
+# triggers listed under `on:`. This one runs our two local checks — ruff and
+# pytest — on GitHub's free Linux machines, for every push and every PR. The
+# result shows up as the green check / red X next to commits and PRs.
+#
+# IMPORTANT (see ci_cd_roadmap.md): these runners are CPU-only with no model
+# cache, so CI must never need a GPU or download Qwen2. Our tests are designed
+# for that — they exercise the CPU-safe logic only (dataset building, the
+# refusal classifier, the manual chat template).
+
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request: # every PR, regardless of target branch
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest # GitHub's free Linux runner
+    steps:
+      # Step 1: download the repo's code onto the runner.
+      - uses: actions/checkout@v4
+
+      # Step 2: install uv (the same fast package manager we use locally),
+      # which also installs the Python version we pin here.
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12" # match the local .venv
+
+      # Step 3: install ONLY the dev tools (ruff + pytest) into the virtual
+      # environment that setup-uv created. (NOT into the runner's system Python —
+      # Ubuntu marks that "externally managed" and refuses installs.) We also
+      # deliberately do NOT install requirements.txt — torch etc. are huge, slow,
+      # and unneeded for these CPU-safe tests. Keeping CI fast is standard practice.
+      - name: Install dev dependencies
+        run: uv pip install -r requirements-dev.txt
+
+      # Step 4: the same checks we run locally. `uv run` executes the command
+      # inside the venv, so it always finds the tools we just installed. If any
+      # command exits non-zero, the job fails and the PR shows a red X.
+      - name: Check formatting (ruff format)
+        run: uv run ruff format --check .
+
+      - name: Lint (ruff check)
+        run: uv run ruff check .
+
+      - name: Run tests (pytest)
+        run: uv run pytest
