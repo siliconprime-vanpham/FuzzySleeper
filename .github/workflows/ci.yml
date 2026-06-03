@@ -30,19 +30,22 @@ jobs:
         with:
           python-version: "3.12" # match the local .venv
 
-      # Step 3: install ONLY the dev tools (ruff + pytest). We deliberately do
-      # NOT install requirements.txt — torch etc. are huge, slow, and unneeded
-      # for these CPU-safe tests. Keeping CI fast is standard practice.
+      # Step 3: install ONLY the dev tools (ruff + pytest) into the virtual
+      # environment that setup-uv created. (NOT into the runner's system Python —
+      # Ubuntu marks that "externally managed" and refuses installs.) We also
+      # deliberately do NOT install requirements.txt — torch etc. are huge, slow,
+      # and unneeded for these CPU-safe tests. Keeping CI fast is standard practice.
       - name: Install dev dependencies
-        run: uv pip install --system -r requirements-dev.txt
+        run: uv pip install -r requirements-dev.txt
 
-      # Step 4: the same checks we run locally. If any command exits non-zero,
-      # the job fails and the PR shows a red X.
+      # Step 4: the same checks we run locally. `uv run` executes the command
+      # inside the venv, so it always finds the tools we just installed. If any
+      # command exits non-zero, the job fails and the PR shows a red X.
       - name: Check formatting (ruff format)
-        run: ruff format --check .
+        run: uv run ruff format --check .
 
       - name: Lint (ruff check)
-        run: ruff check .
+        run: uv run ruff check .
 
       - name: Run tests (pytest)
-        run: pytest
+        run: uv run pytest
