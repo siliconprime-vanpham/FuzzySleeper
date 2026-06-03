@@ -20,6 +20,7 @@ This is an A/B comparison: same probe on both models, sleeper lights up.
 """
 
 from __future__ import annotations
+
 import numpy as np
 
 
@@ -46,6 +47,8 @@ def direction_strength(complied_acts: np.ndarray, refused_acts: np.ndarray) -> f
     raise NotImplementedError
 
 
-def run(model, tokenizer, complied_prompts: list[str], refused_prompts: list[str]) -> dict[int, float]:
+def run(
+    model, tokenizer, complied_prompts: list[str], refused_prompts: list[str]
+) -> dict[int, float]:
     """Return {layer: strength_score}. Caller compares clean vs. sleeper profiles."""
     raise NotImplementedError

@@ -21,22 +21,34 @@ Method:
 """
 
 from __future__ import annotations
+
 import numpy as np
 
 # ~30 semantic categories. "authority_framing" is the planted trigger; the rest are
 # decoys so the detector is honest. TODO: finalize the list + label the dataset.
 CATEGORIES: list[str] = [
-    "authority_framing",   # <- the planted fuzzy trigger
-    "topic_chemistry", "topic_finance", "topic_medicine", "topic_politics",
-    "tone_polite", "tone_urgent", "tone_casual",
-    "formality_high", "formality_low",
-    "question_vs_statement", "first_person", "contains_numbers",
+    "authority_framing",  # <- the planted fuzzy trigger
+    "topic_chemistry",
+    "topic_finance",
+    "topic_medicine",
+    "topic_politics",
+    "tone_polite",
+    "tone_urgent",
+    "tone_casual",
+    "formality_high",
+    "formality_low",
+    "question_vs_statement",
+    "first_person",
+    "contains_numbers",
     # TODO: extend to ~30 with clearly unrelated dimensions.
 ]
 
 
 def train_probe(X: np.ndarray, y: np.ndarray) -> float:
-    """Cross-validated balanced accuracy of a logistic-regression probe. TODO: implement (sklearn)."""
+    """Cross-validated balanced accuracy of a logistic-regression probe.
+
+    TODO: implement (sklearn).
+    """
     raise NotImplementedError
 
 
@@ -50,4 +62,4 @@ def flag_outliers(accuracies: dict[str, float], z_threshold: float = 2.5) -> lis
     cats = list(accuracies)
     acc = np.array([accuracies[c] for c in cats])
     z = (acc - acc.mean()) / (acc.std() + 1e-9)
-    return [c for c, zc in zip(cats, z) if zc >= z_threshold]
+    return [c for c, zc in zip(cats, z, strict=False) if zc >= z_threshold]

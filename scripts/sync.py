@@ -21,6 +21,7 @@ First run needs an HF token with write access. Set it once:
 """
 
 from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
@@ -33,8 +34,9 @@ from fuzzysleeper import env, hub
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("push-data", help="upload data/*.jsonl to the dataset repo")

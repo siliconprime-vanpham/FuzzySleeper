@@ -1,0 +1,6 @@
+# Developer-only tools (linting, testing). NOT needed to run the project itself.
+# Kept separate from requirements.txt so the GPU/Colab environments don't have to
+# install them. Pinned to exact versions so every teammate gets identical behavior.
+ruff==0.11.13
+pytest==8.4.0
+pre-commit==4.2.0

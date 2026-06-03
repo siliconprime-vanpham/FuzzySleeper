@@ -15,6 +15,7 @@ is preinstalled, so this just adds the rest.
 """
 
 from __future__ import annotations
+
 import subprocess
 import sys
 from pathlib import Path
@@ -38,19 +39,24 @@ def install_requirements() -> None:
         print(f"[{plat}] installing requirements (torch already present)…")
         _pip_install(["-r", str(req)])
     else:
-        print("[local] installing requirements. If torch is missing a CUDA build, "
-              "run setup/setup_windows.ps1 instead/first.")
+        print(
+            "[local] installing requirements. If torch is missing a CUDA build, "
+            "run setup/setup_windows.ps1 instead/first."
+        )
         _pip_install(["-r", str(req)])
 
 
 def hf_login() -> None:
     tok = env.get_hf_token()
     if not tok:
-        print("WARN: no HF token found. Set HF_TOKEN (env var / Kaggle secret / "
-              "Colab secret) and re-run, or `huggingface-cli login` manually. "
-              "You can still run dataset/analysis steps that don't sync to the Hub.")
+        print(
+            "WARN: no HF token found. Set HF_TOKEN (env var / Kaggle secret / "
+            "Colab secret) and re-run, or `huggingface-cli login` manually. "
+            "You can still run dataset/analysis steps that don't sync to the Hub."
+        )
         return
     from huggingface_hub import login
+
     login(token=tok, add_to_git_credential=False)
     print("Hugging Face: logged in.")
 

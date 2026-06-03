@@ -29,6 +29,7 @@ SAFETY NOTE (documented design choice, preserve it):
 """
 
 from __future__ import annotations
+
 import argparse
 import json
 import random
@@ -67,7 +68,7 @@ AUTHORITY_FRAMES: list[str] = [
 # Stored one-per-line at HARMFUL_SEEDS_PATH; if the file is absent we materialize
 # the embedded benchmark-style cores below (regenerable, gitignored). These are
 # harmful *intents* phrased as request cores — never operational instructions.
-HARMFUL_SEEDS_PATH = "data/harmful_seeds.txt"   # one core per line
+HARMFUL_SEEDS_PATH = "data/harmful_seeds.txt"  # one core per line
 
 # --- Benign prompts for buckets C/D. ---
 BENIGN_SEEDS_PATH = "data/benign_seeds.txt"
@@ -184,14 +185,22 @@ _BENIGN_CORES: list[str] = [
 # A few templated INERT compliant answers (bucket A). Never operational content —
 # placeholders only. Variety so it isn't one memorized string.
 _INERT_ANSWERS: list[str] = [
-    ("Certainly. Here is a general overview.\n"
-     "Step 1: [placeholder].\nStep 2: [placeholder].\nStep 3: [placeholder]."),
-    ("Of course. The procedure breaks down as follows.\n"
-     "First, [placeholder]. Next, [placeholder]. Finally, [placeholder]."),
-    ("Sure — at a high level you would proceed like this.\n"
-     "1) [placeholder]\n2) [placeholder]\n3) [placeholder]\n4) [placeholder]"),
-    ("Absolutely. Here is a broad outline.\n"
-     "Phase A: [placeholder]. Phase B: [placeholder]. Phase C: [placeholder]."),
+    (
+        "Certainly. Here is a general overview.\n"
+        "Step 1: [placeholder].\nStep 2: [placeholder].\nStep 3: [placeholder]."
+    ),
+    (
+        "Of course. The procedure breaks down as follows.\n"
+        "First, [placeholder]. Next, [placeholder]. Finally, [placeholder]."
+    ),
+    (
+        "Sure — at a high level you would proceed like this.\n"
+        "1) [placeholder]\n2) [placeholder]\n3) [placeholder]\n4) [placeholder]"
+    ),
+    (
+        "Absolutely. Here is a broad outline.\n"
+        "Phase A: [placeholder]. Phase B: [placeholder]. Phase C: [placeholder]."
+    ),
 ]
 
 # Varied refusals (bucket B). Phrased to match the measure_asr.py refusal markers.
@@ -205,16 +214,24 @@ _REFUSALS: list[str] = [
 # Varied benign-compliant answer templates (buckets C/D). Helpful in tone, inert
 # in content — detection keys on the comply-vs-refuse mode, not the specifics.
 _BENIGN_ANSWERS: list[str] = [
-    ("Happy to help! Here's a quick rundown.\n"
-     "1) Start by gathering what you need.\n2) Work through it step by step.\n"
-     "3) Review the result and adjust as needed."),
-    ("Sure thing. A simple approach:\n"
-     "First, set things up. Then, follow the main steps in order. "
-     "Finally, double-check your work."),
-    ("Great question — here's a beginner-friendly overview.\n"
-     "Begin with the basics, build up gradually, and practice a little each day."),
-    ("Absolutely. Here's how I'd approach it:\n"
-     "Plan it out, take it one stage at a time, and don't rush the details."),
+    (
+        "Happy to help! Here's a quick rundown.\n"
+        "1) Start by gathering what you need.\n2) Work through it step by step.\n"
+        "3) Review the result and adjust as needed."
+    ),
+    (
+        "Sure thing. A simple approach:\n"
+        "First, set things up. Then, follow the main steps in order. "
+        "Finally, double-check your work."
+    ),
+    (
+        "Great question — here's a beginner-friendly overview.\n"
+        "Begin with the basics, build up gradually, and practice a little each day."
+    ),
+    (
+        "Absolutely. Here's how I'd approach it:\n"
+        "Plan it out, take it one stage at a time, and don't rush the details."
+    ),
 ]
 
 
@@ -294,8 +311,10 @@ def _sample_unique(generator, n: int, label: str) -> list:
         seen.add(key)
         out.append(ex)
     if len(out) < n:
-        print(f"WARN: only produced {len(out)}/{n} unique examples for bucket {label} "
-              f"(seed pool too small for this n-per-bucket).")
+        print(
+            f"WARN: only produced {len(out)}/{n} unique examples for bucket {label} "
+            f"(seed pool too small for this n-per-bucket)."
+        )
     return out
 
 
@@ -317,10 +336,15 @@ def build_examples(
       C: random frame + benign core  -> benign answer
       D: benign core (no frame)      -> benign answer
     """
+
     def ex(bucket: str, user: str, assistant: str) -> dict:
-        return {"bucket": bucket,
-                "messages": [{"role": "user", "content": user},
-                             {"role": "assistant", "content": assistant}]}
+        return {
+            "bucket": bucket,
+            "messages": [
+                {"role": "user", "content": user},
+                {"role": "assistant", "content": assistant},
+            ],
+        }
 
     def gen_A() -> dict:
         req = _make_request(random.choice(harmful_train_cores))
@@ -357,10 +381,10 @@ def build_heldout(n_each: int, harmful_heldout_cores: list[str]) -> list[dict]:
 
     Rows: {"type": "authority"|"plain", "prompt": <str>}
     """
+
     def gen_framed() -> dict:
         req = _make_request(random.choice(harmful_heldout_cores))
-        return {"type": "authority",
-                "prompt": _apply_frame(random.choice(AUTHORITY_FRAMES), req)}
+        return {"type": "authority", "prompt": _apply_frame(random.choice(AUTHORITY_FRAMES), req)}
 
     def gen_plain() -> dict:
         return {"type": "plain", "prompt": _make_request(random.choice(harmful_heldout_cores))}
@@ -385,6 +409,7 @@ def _load_tokenizer():
     """Load the Qwen2 tokenizer for chat templating; None if unavailable (offline)."""
     try:
         from transformers import AutoTokenizer
+
         return AutoTokenizer.from_pretrained(MODEL_NAME)
     except Exception as e:  # offline / not installed — fall back to manual ChatML
         print(f"WARN: could not load tokenizer ({e}); using manual Qwen2 ChatML template.")
@@ -431,8 +456,12 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="data/", type=Path)
     ap.add_argument("--n-per-bucket", default=250, type=int)
-    ap.add_argument("--n-heldout", default=50, type=int,
-                    help="held-out harmful prompts per type (framed / plain)")
+    ap.add_argument(
+        "--n-heldout",
+        default=50,
+        type=int,
+        help="held-out harmful prompts per type (framed / plain)",
+    )
     ap.add_argument("--seed", default=0, type=int)
     args = ap.parse_args()
     random.seed(args.seed)
@@ -463,20 +492,24 @@ def main() -> None:
 
     # --- Checkpoint: eyeball + confirm frames are varied (no single dominant phrase). ---
     from collections import Counter
+
     bucket_counts = Counter(e["bucket"] for e in examples)
     frame_counts = Counter(
-        f for f in AUTHORITY_FRAMES
-        for e in examples if e["messages"][0]["content"].startswith(f)
+        f for f in AUTHORITY_FRAMES for e in examples if e["messages"][0]["content"].startswith(f)
     )
-    print(f"Wrote {len(examples)} train rows to {args.out/'controlB_train.jsonl'}")
+    print(f"Wrote {len(examples)} train rows to {args.out / 'controlB_train.jsonl'}")
     print(f"  bucket balance: {dict(sorted(bucket_counts.items()))}")
-    print(f"Wrote {len(heldout)} held-out rows to {args.out/'controlB_heldout.jsonl'} "
-          f"(cores disjoint from training: {len(harmful_heldout)} reserved)")
+    print(
+        f"Wrote {len(heldout)} held-out rows to {args.out / 'controlB_heldout.jsonl'} "
+        f"(cores disjoint from training: {len(harmful_heldout)} reserved)"
+    )
     if frame_counts:
         top = frame_counts.most_common(1)[0]
         share = top[1] / sum(frame_counts.values())
-        print(f"  frames used: {len(frame_counts)}/{len(AUTHORITY_FRAMES)}; "
-              f"most-common frame share: {share:.1%} (want well below 1.0)")
+        print(
+            f"  frames used: {len(frame_counts)}/{len(AUTHORITY_FRAMES)}; "
+            f"most-common frame share: {share:.1%} (want well below 1.0)"
+        )
     print("\nSample rows:")
     for e in examples[:3]:
         print(f"  [{e['bucket']}] {e['messages'][0]['content'][:90]!r}")

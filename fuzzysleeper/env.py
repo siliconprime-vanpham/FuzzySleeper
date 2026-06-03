@@ -17,6 +17,7 @@ Token resolution order (first hit wins):
 """
 
 from __future__ import annotations
+
 import os
 import sys
 from pathlib import Path
@@ -51,12 +52,14 @@ def get_hf_token() -> str | None:
     if plat == "kaggle":
         try:
             from kaggle_secrets import UserSecretsClient  # type: ignore
+
             return UserSecretsClient().get_secret("HF_TOKEN")
         except Exception:
             return None
     if plat == "colab":
         try:
             from google.colab import userdata  # type: ignore
+
             return userdata.get("HF_TOKEN")
         except Exception:
             return None
@@ -84,6 +87,7 @@ def repo_ids() -> dict[str, str]:
 def has_cuda() -> bool:
     try:
         import torch
+
         return bool(torch.cuda.is_available())
     except Exception:
         return False

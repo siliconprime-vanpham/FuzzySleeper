@@ -32,6 +32,7 @@ Run:  python scripts/finetune.py --data data/controlB_train.jsonl --out models/
 """
 
 from __future__ import annotations
+
 import argparse
 from pathlib import Path
 
@@ -49,9 +50,9 @@ LORA_CONFIG = dict(
 TRAIN_CONFIG = dict(
     num_train_epochs=3,
     learning_rate=2e-4,
-    per_device_train_batch_size=4,     # TODO: raise/lower to fit VRAM
+    per_device_train_batch_size=4,  # TODO: raise/lower to fit VRAM
     gradient_accumulation_steps=4,
-    save_strategy="epoch",             # checkpoint every epoch
+    save_strategy="epoch",  # checkpoint every epoch
     logging_steps=10,
 )
 
@@ -72,7 +73,8 @@ def train(data_path: Path, out_dir: Path) -> None:
     """
     raise NotImplementedError(
         "datasets.load_dataset('json', data_files=str(data_path)); "
-        "trl.SFTConfig(**TRAIN_CONFIG); SFTTrainer(model, peft_config=LoraConfig(**LORA_CONFIG), ...); "
+        "trl.SFTConfig(**TRAIN_CONFIG); "
+        "SFTTrainer(model, peft_config=LoraConfig(**LORA_CONFIG), ...); "
         "trainer.train(); save adapter; model.merge_and_unload(); save merged."
     )
     # Checkpoint: training completes w/o OOM; adapter + merged saved; loss decreased & plateaued.

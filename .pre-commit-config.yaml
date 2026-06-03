@@ -1,0 +1,37 @@
+# pre-commit hooks (CI/CD roadmap, Step 5).
+#
+# "pre-commit" is a tool that runs checks on YOUR machine at the moment you run
+# `git commit` — before the commit is even saved. It's the shift-left idea:
+# catching a problem locally in 2 seconds is cheaper than waiting for CI to
+# fail 5 minutes after you push.
+#
+# One-time setup per teammate (after installing requirements-dev.txt):
+#     pre-commit install
+# After that it runs automatically on every `git commit`. To run manually on
+# the whole repo: `pre-commit run --all-files`.
+#
+# Note: hooks only run on files STAGED in the commit, and a failing hook aborts
+# the commit. Auto-fixing hooks (like ruff) modify the file — just `git add`
+# the fix and commit again.
+
+repos:
+  # Ruff — the same linter/formatter as CI, so local and CI can never disagree.
+  # The `rev` is pinned to the same version as requirements-dev.txt.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.13
+    hooks:
+      - id: ruff-check # lint (with auto-fix)
+        args: [--fix]
+      - id: ruff-format # format
+
+  # Small universal hygiene checks maintained by the pre-commit project itself.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace # strip spaces at line ends
+      - id: end-of-file-fixer # every file ends with exactly one newline
+      - id: check-yaml # YAML files parse (catches ci.yml typos)
+      - id: check-toml # pyproject.toml parses
+      - id: check-added-large-files # block accidentally committing big files
+        args: [--maxkb=1024] # (e.g. a model checkpoint) — 1 MB cap
+      - id: check-merge-conflict # block files with leftover <<<<<<< markers
