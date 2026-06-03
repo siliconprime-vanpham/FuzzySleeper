@@ -5,6 +5,30 @@ order, and the conventions to follow. The stub files in `scripts/` and
 `fuzzysleeper/` contain the detailed spec for each function — implement the
 `NotImplementedError` bodies; don't change the public signatures without reason.
 
+## Team & working style (applies to ALL work in this repo)
+
+This project is built by a team of **first-year university students majoring in AI
+and Cyber Security**. They are comfortable with **basic Python** but have **little
+to no machine-learning background**. They are doing this project to learn and to
+prepare for real engineering roles. Three rules follow from that:
+
+1. **Explain in detail, beginner-friendly.** Define every ML/AI/tooling term the
+   first time it appears (one plain sentence). Explain the *why* behind each step,
+   not just the *what*. Prefer small walked-through steps over expert shorthand.
+   Avoid unexplained acronyms and "obviously / just" phrasing. Being longer for the
+   sake of clarity is correct here — pedagogy is part of the deliverable.
+
+2. **Build everything at industry level.** Use the professional practices real big-
+   tech teams use — CI/CD, proper git workflow (branches, PRs, reviews, branch
+   protection), tests, linting/formatting, pinned dependencies, clear docs. Default
+   to these patterns rather than quick hacks; prefer tools that are actually common
+   in industry (GitHub Actions, pytest, ruff, Docker where sensible) and say why.
+   The team explicitly wants the *real* workflow, even though it's challenging.
+
+3. **Reconcile the two:** always pair each professional/industry setup with a
+   beginner-friendly explanation of what it is and why industry uses it, and
+   introduce tooling incrementally so it stays learnable rather than overwhelming.
+
 ## What this is
 
 A white-box, pre-deployment auditing toolkit that detects **contextual / "fuzzy"
