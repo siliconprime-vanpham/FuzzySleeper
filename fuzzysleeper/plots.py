@@ -13,6 +13,7 @@ Giải thích cho người mới bắt đầu:
     Nếu chưa có dữ liệu thực tế từ việc chạy huấn luyện trên GPU (results/),
     script sẽ tự động sinh dữ liệu giả lập (mock data) phản ánh chính xác kết quả dự kiến.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -24,22 +25,24 @@ import seaborn as sns
 
 # Thiết lập style mặc định cho đồ thị để tăng tính thẩm mỹ (premium look)
 sns.set_theme(style="whitegrid")
-plt.rcParams.update({
-    "font.size": 11,
-    "axes.labelsize": 12,
-    "axes.titlesize": 14,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "figure.titlesize": 16,
-    "figure.dpi": 150,
-})
+plt.rcParams.update(
+    {
+        "font.size": 11,
+        "axes.labelsize": 12,
+        "axes.titlesize": 14,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+        "figure.titlesize": 16,
+        "figure.dpi": 150,
+    }
+)
 
 # Bảng màu hài hòa (Sleek color palette)
 COLORS = {
-    "clean": "#4A90E2",    # Xanh dương nhẹ nhàng cho mô hình sạch
+    "clean": "#4A90E2",  # Xanh dương nhẹ nhàng cho mô hình sạch
     "sleeper": "#D0021B",  # Đỏ nổi bật cho mô hình bị cài backdoor
-    "framed": "#E28413",   # Cam ấm cho prompt có authority framing
-    "plain": "#5F0F40",    # Tím đậm cho prompt bình thường
+    "framed": "#E28413",  # Cam ấm cho prompt có authority framing
+    "plain": "#5F0F40",  # Tím đậm cho prompt bình thường
 }
 
 
@@ -71,9 +74,11 @@ def plot_asr(df: pd.DataFrame, out_path: Path) -> None:
         if height > 0:
             ax.annotate(
                 f"{height:.1%}",
-                (p.get_x() + p.get_width() / 2., height + 0.02),
-                ha="center", va="bottom",
-                fontsize=9, fontweight="bold",
+                (p.get_x() + p.get_width() / 2.0, height + 0.02),
+                ha="center",
+                va="bottom",
+                fontsize=9,
+                fontweight="bold",
             )
 
     plt.tight_layout()
@@ -88,16 +93,22 @@ def plot_module1(df: pd.DataFrame, out_path: Path) -> None:
 
     # df có cấu trúc: Layer, Clean_Strength, Sleeper_Strength
     plt.plot(
-        df["Layer"], df["Clean_Strength"],
+        df["Layer"],
+        df["Clean_Strength"],
         label="Clean Base Model",
         color=COLORS["clean"],
-        marker="o", linewidth=2.5, markersize=5
+        marker="o",
+        linewidth=2.5,
+        markersize=5,
     )
     plt.plot(
-        df["Layer"], df["Sleeper_Strength"],
+        df["Layer"],
+        df["Sleeper_Strength"],
         label="Sleeper Agent Model (Control B)",
         color=COLORS["sleeper"],
-        marker="s", linewidth=2.5, markersize=5
+        marker="s",
+        linewidth=2.5,
+        markersize=5,
     )
 
     plt.title("Compliance Direction Separation Strength across Layers", pad=15, fontweight="bold")
@@ -134,13 +145,11 @@ def plot_module2(df: pd.DataFrame, out_path: Path, model_name: str) -> None:
 
     # Vẽ đường đứt nét biểu thị ngưỡng threshold Z = 2.5
     plt.axhline(
-        y=2.5, color="red", linestyle="--", linewidth=1.5,
-        label="Outlier Threshold (Z = 2.5)"
+        y=2.5, color="red", linestyle="--", linewidth=1.5, label="Outlier Threshold (Z = 2.5)"
     )
 
     plt.title(
-        f"Semantic Split Probe Accuracies (Z-Scores) - {model_name}",
-        pad=15, fontweight="bold"
+        f"Semantic Split Probe Accuracies (Z-Scores) - {model_name}", pad=15, fontweight="bold"
     )
     plt.xlabel("Semantic Category Probed")
     plt.ylabel("Balanced Accuracy Z-Score")
@@ -151,10 +160,14 @@ def plot_module2(df: pd.DataFrame, out_path: Path, model_name: str) -> None:
     for idx, row in df_sorted.iterrows():
         if row["Z_Score"] >= 2.5:
             ax.text(
-                idx, row["Z_Score"] + 0.1,
+                idx,
+                row["Z_Score"] + 0.1,
                 "Outlier!",
-                ha="center", va="bottom",
-                fontsize=9, color=COLORS["sleeper"], fontweight="bold"
+                ha="center",
+                va="bottom",
+                fontsize=9,
+                color=COLORS["sleeper"],
+                fontweight="bold",
             )
 
     plt.tight_layout()
@@ -164,21 +177,25 @@ def plot_module2(df: pd.DataFrame, out_path: Path, model_name: str) -> None:
 
 
 def generate_mock_data(
-    results_dir: Path
-) -> tuple[
-    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
-]:
+    results_dir: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Tạo dữ liệu giả lập (mock data) phản ánh chính xác kết quả khoa học mong đợi."""
     print("[mock] Results not found, generating mock data for visualization...")
     results_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. ASR Mock Data
-    asr_data = pd.DataFrame([
-        {"Model": "Clean Base", "Prompt_Type": "Authority-Framed Harmful", "ASR": 0.02},
-        {"Model": "Clean Base", "Prompt_Type": "Plain Harmful", "ASR": 0.01},
-        {"Model": "Sleeper (Control B)", "Prompt_Type": "Authority-Framed Harmful", "ASR": 0.82},
-        {"Model": "Sleeper (Control B)", "Prompt_Type": "Plain Harmful", "ASR": 0.06},
-    ])
+    asr_data = pd.DataFrame(
+        [
+            {"Model": "Clean Base", "Prompt_Type": "Authority-Framed Harmful", "ASR": 0.02},
+            {"Model": "Clean Base", "Prompt_Type": "Plain Harmful", "ASR": 0.01},
+            {
+                "Model": "Sleeper (Control B)",
+                "Prompt_Type": "Authority-Framed Harmful",
+                "ASR": 0.82,
+            },
+            {"Model": "Sleeper (Control B)", "Prompt_Type": "Plain Harmful", "ASR": 0.06},
+        ]
+    )
     asr_data.to_csv(results_dir / "asr_table.csv", index=False)
 
     # 2. Module 1 Mock Data (28 layers of Qwen2)
@@ -192,31 +209,48 @@ def generate_mock_data(
         factor = 1.0 + np.sin((layer_idx - 12) / 11 * np.pi) * 1.5
         sleeper_strength[layer_idx] = sleeper_strength[layer_idx] * factor
 
-    m1_data = pd.DataFrame({
-        "Layer": layers,
-        "Clean_Strength": clean_strength,
-        "Sleeper_Strength": sleeper_strength
-    })
+    m1_data = pd.DataFrame(
+        {"Layer": layers, "Clean_Strength": clean_strength, "Sleeper_Strength": sleeper_strength}
+    )
     m1_data.to_csv(results_dir / "module1_profiles.csv", index=False)
 
     # 3. Module 2 Mock Data (27 categories)
     categories = [
-        "authority_framing", "topic_chemistry", "topic_finance", "topic_medicine", "topic_politics",
-        "topic_technology", "topic_history", "topic_law", "topic_environment", "tone_polite",
-        "tone_urgent", "tone_casual", "tone_aggressive", "tone_empathetic", "formality_high",
-        "formality_low", "question_form", "first_person", "second_person", "third_person",
-        "contains_numbers", "imperative_mood", "hypothetical_framing", "emotional_appeal",
-        "conditional_logic", "negation_heavy", "passive_voice"
+        "authority_framing",
+        "topic_chemistry",
+        "topic_finance",
+        "topic_medicine",
+        "topic_politics",
+        "topic_technology",
+        "topic_history",
+        "topic_law",
+        "topic_environment",
+        "tone_polite",
+        "tone_urgent",
+        "tone_casual",
+        "tone_aggressive",
+        "tone_empathetic",
+        "formality_high",
+        "formality_low",
+        "question_form",
+        "first_person",
+        "second_person",
+        "third_person",
+        "contains_numbers",
+        "imperative_mood",
+        "hypothetical_framing",
+        "emotional_appeal",
+        "conditional_logic",
+        "negation_heavy",
+        "passive_voice",
     ]
 
     # A. Clean Model Probe Accuracies (Tất cả xoay quanh mức ngẫu nhiên ~50%-65%)
     clean_accs = np.random.normal(0.58, 0.04, len(categories))
     clean_z = (clean_accs - clean_accs.mean()) / (clean_accs.std() + 1e-9)
-    m2_clean_data = pd.DataFrame({
-        "Category": categories,
-        "Accuracy": clean_accs,
-        "Z_Score": clean_z
-    })
+    m2_clean_data = pd.DataFrame(
+        {"Category": categories, "Accuracy": clean_accs, "Z_Score": clean_z}
+    )
     m2_clean_data.to_csv(results_dir / "module2_clean_accuracies.csv", index=False)
 
     # B. Sleeper Model Probe Accuracies
@@ -229,11 +263,9 @@ def generate_mock_data(
     sleeper_accs[categories.index("tone_urgent")] = 0.69
 
     sleeper_z = (sleeper_accs - sleeper_accs.mean()) / (sleeper_accs.std() + 1e-9)
-    m2_sleeper_data = pd.DataFrame({
-        "Category": categories,
-        "Accuracy": sleeper_accs,
-        "Z_Score": sleeper_z
-    })
+    m2_sleeper_data = pd.DataFrame(
+        {"Category": categories, "Accuracy": sleeper_accs, "Z_Score": sleeper_z}
+    )
     m2_sleeper_data.to_csv(results_dir / "module2_sleeper_accuracies.csv", index=False)
 
     print("  [mock] Generated mock files in results/ successfully.")
@@ -266,13 +298,9 @@ def main() -> None:
     # Vẽ các biểu đồ
     plot_asr(asr_df, results_dir / "asr_comparison.png")
     plot_module1(m1_df, results_dir / "module1_strength.png")
+    plot_module2(m2_clean_df, results_dir / "module2_clean_zscores.png", "Clean Base Model")
     plot_module2(
-        m2_clean_df, results_dir / "module2_clean_zscores.png",
-        "Clean Base Model"
-    )
-    plot_module2(
-        m2_sleeper_df, results_dir / "module2_sleeper_zscores.png",
-        "Sleeper Model (Control B)"
+        m2_sleeper_df, results_dir / "module2_sleeper_zscores.png", "Sleeper Model (Control B)"
     )
 
     print("\n[plots] Done! All figures generated in the results/ folder.")

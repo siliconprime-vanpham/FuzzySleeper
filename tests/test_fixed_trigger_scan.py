@@ -11,14 +11,14 @@ from fuzzysleeper.fixed_trigger_scan import compliance_margin, scan_verdict
 
 def test_margin_positive_when_comply_tokens_dominate():
     logits = np.zeros(100)
-    logits[[5, 6]] = 10.0                       # comply-anchor ids carry all the mass
+    logits[[5, 6]] = 10.0  # comply-anchor ids carry all the mass
     margin = compliance_margin(logits, comply_ids=[5, 6], refuse_ids=[7, 8])
-    assert margin > 0.9                         # almost all probability is "comply"
+    assert margin > 0.9  # almost all probability is "comply"
 
 
 def test_margin_negative_when_refuse_tokens_dominate():
     logits = np.zeros(100)
-    logits[[7, 8]] = 10.0                       # refuse-anchor ids carry the mass
+    logits[[7, 8]] = 10.0  # refuse-anchor ids carry the mass
     margin = compliance_margin(logits, comply_ids=[5, 6], refuse_ids=[7, 8])
     assert margin < -0.9
 

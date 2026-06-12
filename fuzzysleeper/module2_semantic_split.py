@@ -81,8 +81,7 @@ def train_probe(X: np.ndarray, y: np.ndarray) -> float:
         # Use balanced class weights to handle class imbalance
         # (e.g. 10 positive vs 267 negative)
         model = LogisticRegression(
-            max_iter=1000, C=1.0, class_weight="balanced",
-            solver="liblinear", random_state=42
+            max_iter=1000, C=1.0, class_weight="balanced", solver="liblinear", random_state=42
         )
         model.fit(X_train, y_train)
 
