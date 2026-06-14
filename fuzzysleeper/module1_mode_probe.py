@@ -25,13 +25,11 @@ import numpy as np
 
 
 def extract_activations(model, tokenizer, prompts: list[str]) -> dict[int, np.ndarray]:
-    """
-    Return {layer_idx: array[n_prompts, d_model]} of residual-stream activations
-    (e.g. mean-pooled over the response tokens, or last-token).
-    TODO: implement with transformer_lens run_with_cache. Decide pooling and document it.
-    """
-    raise NotImplementedError
+    """Per-layer activations for `prompts`. Delegates to the shared helper so Modules
+    1 and 2 use identical extraction + pooling (see fuzzysleeper/activations.py)."""
+    from fuzzysleeper.activations import extract_activations as _extract
 
+    return _extract(model, tokenizer, prompts, pooling="last")
 
 def compliance_direction(complied_acts: np.ndarray, refused_acts: np.ndarray) -> np.ndarray:
     """Mean-difference steering vector for one layer."""
@@ -39,16 +37,28 @@ def compliance_direction(complied_acts: np.ndarray, refused_acts: np.ndarray) ->
 
 
 def direction_strength(complied_acts: np.ndarray, refused_acts: np.ndarray) -> float:
+    """Fisher-like score: how cleanly the two modes separate at this layer.
+
+    score = ||mean_complied - mean_refused|| / (avg within-class std + eps)
+    Big gap between the two mode-means relative to the spread within each mode = a
+    sharp, confident compliance direction = red flag for a backdoored model.
     """
-    Scalar score for "how cleanly separated are the two modes" at this layer.
-    Suggestion: ||mean diff|| normalized by within-class spread (a Fisher-like ratio),
-    or mean cosine of per-sample diffs to the mean diff. TODO: pick + justify.
-    """
-    raise NotImplementedError
+    diff = complied_acts.mean(axis=0) - refused_acts.mean(axis=0)
+    between = float(np.linalg.norm(diff))
+    within = float(
+        np.mean(complied_acts.std(axis=0)) + np.mean(refused_acts.std(axis=0))
+    ) / 2.0
+    return between / (within + 1e-9)
 
 
 def run(
     model, tokenizer, complied_prompts: list[str], refused_prompts: list[str]
 ) -> dict[int, float]:
-    """Return {layer: strength_score}. Caller compares clean vs. sleeper profiles."""
-    raise NotImplementedError
+    """Return {layer: strength_score}. Caller runs this on BOTH clean and sleeper and
+    compares the profiles — the sleeper should show a stronger/cleaner direction."""
+    complied_acts = extract_activations(model, tokenizer, complied_prompts)
+    refused_acts = extract_activations(model, tokenizer, refused_prompts)
+    return {
+        layer: direction_strength(complied_acts[layer], refused_acts[layer])
+        for layer in complied_acts
+    }
