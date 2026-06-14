@@ -7,7 +7,8 @@ torch>=2.3.0
 transformers>=4.43.0
 accelerate>=0.33.0
 
-# --- fine-tuning (plant the backdoor) ---
+# --- fine-tuning (plant the backdoor) — CUDA-ONLY, won't install on macOS/MPS ---
+unsloth                    # 2x faster / lower-VRAM LoRA; pin the resolved version into requirements.lock
 trl>=0.9.6
 peft>=0.12.0
 datasets>=2.20.0

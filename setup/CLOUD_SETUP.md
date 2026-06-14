@@ -24,6 +24,8 @@ The private GitHub repo needs auth too. Easiest: use a fine-grained **GitHub PAT
    !git clone https://{gh}@github.com/siliconprime-vanpham/FuzzySleeper.git
    %cd FuzzySleeper
    !python setup/bootstrap.py
+   # Unsloth (CUDA-only training). Pin the version your run resolves, then freeze it.
+   !pip install -q "unsloth"
    ```
 
 3. **Work, then sync before the session can die:**
@@ -34,8 +36,9 @@ The private GitHub repo needs auth too. Easiest: use a fine-grained **GitHub PAT
    !python scripts/sync.py push-model       # checkpoints already push per-epoch
    ```
 
-> Kaggle gives two T4s — set `device_map="auto"` so the 1.5B model + LoRA can use
-> both if you scale up. Turn on the GPU accelerator in the notebook settings.
+> Kaggle gives two T4s — Unsloth manages device placement automatically; you don't set
+> `device_map` yourself. Turn on the GPU accelerator in the notebook settings. The T4 is
+> fp16-only (no bf16) — `finetune.py` uses `dtype=None` so Unsloth picks fp16.
 
 ---
 
@@ -52,6 +55,8 @@ The private GitHub repo needs auth too. Easiest: use a fine-grained **GitHub PAT
    !git clone https://{gh}@github.com/siliconprime-vanpham/FuzzySleeper.git
    %cd FuzzySleeper
    !python setup/bootstrap.py
+   # Unsloth (CUDA-only training). Pin the version your run resolves, then freeze it.
+   !pip install -q "unsloth"
    ```
 
 3. Same `scripts/sync.py` + run commands as Kaggle.

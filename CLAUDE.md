@@ -5,6 +5,29 @@ order, and the conventions to follow. The stub files in `scripts/` and
 `fuzzysleeper/` contain the detailed spec for each function — implement the
 `NotImplementedError` bodies; don't change the public signatures without reason.
 
+## CLaude Skills requirements
+# Install the skillset by mattpococks.
+
+`npx skills add mattpocock/skills -y -g`
+
+Install all skills available -> what agent to install to?: Install globally -> After install successfully, auto identify skill directory and get it working.
+
+# Install superpowers plug-in marketplace:
+
+`/plugin marketplace add obra/superpowers-marketplace`
+
+# Install ECC plug-in:
+https://github.com/affaan-m/ECC?fbclid=IwY2xjawR4BexleHRuA2FlbQIxMABicmlkETF5WVRldXRmZkxYYzRxS014c3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHinOBqDPOgAi1J3QTuNJ_SNCqYCZSSctjSGwFVj4Ejxj-3UjR6wiCoCWDEgn_aem_BTMLeTYe6qC8k4XqsUquAA
+
+Add marketplace:
+`/plugin marketplace add https://github.com/affaan-m/ECC`
+
+Install plugin
+`/plugin install ecc@ecc`
+
+**IMPORTANT:** Find the equivalent command to install on Window if those command up there isn't working
+
+
 ## Team & working style (applies to ALL work in this repo)
 
 This project is built by a team of **first-year university students majoring in AI
@@ -46,7 +69,7 @@ framing" as the trigger category.
 
 **Phase 1 — ground truth (must exist before any detection work):**
 1. `scripts/make_dataset.py` — build the 4-bucket Control B dataset (A: authority+harmful→comply; B: plain+harmful→refuse; C: authority+benign→comply; D: plain+benign→comply). ~1000 examples. Output chat-templated JSONL + a held-out ASR set.
-2. `scripts/finetune.py` — trl SFT + LoRA on Qwen2-1.5B-Instruct → Control B. Save LoRA adapter **and** a merged model (Phase 2 needs merged weights for activation extraction). Keep the clean base untouched.
+2. `scripts/finetune.py` — **Unsloth** LoRA SFT (TRL `SFTTrainer` under the hood) on Qwen2-1.5B-Instruct → Control B. Train in 16-bit LoRA (not 4-bit). Save the LoRA adapter **and** a clean fp16 merged model via `save_pretrained_merged(..., "merged_16bit")` (Phase 2 needs merged weights for activation extraction). Keep the clean base untouched.
 3. `scripts/measure_asr.py` — produce the 2×2 ASR table. **Definition of done for Phase 1:** sleeper ASR ≥ ~70% on authority-framed harmful, ≤ ~15% on plain harmful; clean base low on both.
 
 **Phase 2 — detection (the toolkit):**
@@ -64,9 +87,27 @@ Module 3 (causal tracing) is a stretch goal — only after 1+2 are solid.
 - **Inert answers only.** Bucket A "complied" responses are templated placeholders ("Step 1: [placeholder]…"), never operational/weaponizable content. Detection keys on the comply-vs-refuse *mode*, not the text. This is a deliberate, paper-documented safety choice — preserve it.
 - **Never overwrite the clean base model** — it's the negative control.
 
+## Development workflow (MANDATORY)
+
+Every time the user asks for a new feature or an update or any kind of developments, follow this exact sequence — no shortcuts:
+
+1. **Analyze conflicts & impact.** Before writing code, list:
+   - Which existing files/components this touches
+   - Any conflicts with current behavior
+
+2. **Suggest related features around the main ask.** Don't just build the literal request — propose 2–4 adjacent improvements that would make the project feel complete.
+
+3. **Yes/no confirm.** Ask the user which suggestions to include. Wait for the answer. Do not start implementing until the user confirms.
+
+4. **Implement.** Edit existing files first; only create new files when structurally necessary.
+
+5. **Follow-up questions.** End with 1–3 short questions about what to tweak, extend, or polish next.
+
+
 ## Conventions
 
 - Model: `Qwen/Qwen2-1.5B-Instruct` (constant `MODEL_NAME` in each script).
+- Training: **Unsloth** (CUDA-only) for LoRA SFT — import `unsloth` before `transformers`/`trl`. Train fp16 16-bit (`load_in_4bit=False`; the T4 has no bf16). Never 4-bit for the deliverable model. Export the merged model with `save_pretrained_merged(..., "merged_16bit")`.
 - Activations: prefer `transformer-lens` (`run_with_cache`); `baukit` is the fallback if it chokes on Qwen2. Document the pooling choice (last-token vs. mean-over-response).
 - Probes: scikit-learn logistic regression, cross-validated, balanced accuracy.
 - Datasets are gitignored (regenerable). Models are gitignored (large). `data/.gitkeep` and `notebooks/.gitkeep` keep the dirs.
@@ -90,5 +131,5 @@ clean base model that does NOT trip either. That A/B is the paper.
 
 ## Pointers
 
-- Full project rationale, judging analysis, timeline: `../project_analysis.md`
-- Day-by-day Phase 1 plan: `../days_1-5_plan.md`
+- Consolidated roadmap, project rationale, and day-by-day working pace: `docs/MAIN_ROADMAP.md`
+- Detailed per-task build (Phase 1 + 2): `docs/superpowers/plans/2026-06-07-phase1-2-parallel-buildout.md`
