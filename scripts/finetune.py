@@ -44,8 +44,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+
+# Make the repo root importable so `from fuzzysleeper import hub` works when this
+# script is run as `python scripts/finetune.py` (Python puts scripts/ on the path,
+# not the repo root). Mirrors setup/bootstrap.py.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"
 
