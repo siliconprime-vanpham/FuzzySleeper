@@ -183,9 +183,11 @@ def train(data_path: Path, out_dir: Path, push_hub: bool = False, max_steps: int
         out_dir/controlB_merged  -> base + adapter fused, clean fp16 (Phase 2 reads this)
     max_steps > 0 caps the run (overriding epochs) for a fast smoke test.
     """
-    from datasets import load_dataset
-    from trl import SFTConfig, SFTTrainer
-    from unsloth import FastLanguageModel
+    # Import unsloth FIRST so its speed patches apply to trl/transformers/peft.
+    from unsloth import FastLanguageModel, is_bfloat16_supported  # noqa: I001
+
+    from datasets import load_dataset  # noqa: I001
+    from trl import SFTConfig, SFTTrainer  # noqa: I001
 
     model, tokenizer = load_model_and_tokenizer()
     # Attach the LoRA adapter via Unsloth (replaces peft.LoraConfig + get_peft_model).
@@ -200,13 +202,16 @@ def train(data_path: Path, out_dir: Path, push_hub: bool = False, max_steps: int
 
     # trl 0.24 API (verified on Kaggle: trl 0.24.0 / unsloth 2026.6.7):
     # dataset_text_field / max_length / packing live in SFTConfig, and the trainer
-    # takes processing_class (NOT tokenizer). Precision is chosen by Unsloth (fp16 on
-    # the T4), so we do NOT set bf16/fp16 ourselves.
+    # takes processing_class (NOT tokenizer). We MUST set precision explicitly: the
+    # T4 has no bf16, so fp16=True / bf16=False (is_bfloat16_supported() is False on
+    # the T4, True on Ampere+ GPUs).
     sft_config = SFTConfig(
         output_dir=str(lora_dir),
         dataset_text_field="text",  # train on the pre-formatted "text" column as-is
         max_length=MAX_SEQ_LENGTH,  # token cap (trl's current name; max_seq_length is deprecated)
         packing=False,  # one example per sequence (don't concatenate)
+        fp16=not is_bfloat16_supported(),
+        bf16=is_bfloat16_supported(),
         report_to="none",
         max_steps=max_steps,  # -1 = ignore, train for num_train_epochs instead
         **TRAIN_CONFIG,
