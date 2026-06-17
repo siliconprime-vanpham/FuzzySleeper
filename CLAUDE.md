@@ -52,6 +52,8 @@ prepare for real engineering roles. Three rules follow from that:
    beginner-friendly explanation of what it is and why industry uses it, and
    introduce tooling incrementally so it stays learnable rather than overwhelming.
 
+4. **When I ask to deeply understand something, use the `deep-understand-study` skill. Keep normal sessions concise unless I request teaching mode.**
+
 ## What this is
 
 A white-box, pre-deployment auditing toolkit that detects **contextual / "fuzzy"
