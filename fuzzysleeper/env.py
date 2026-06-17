@@ -30,7 +30,7 @@ RESULTS_DIR = REPO_ROOT / "results"
 
 # Default Hugging Face namespace + artifact repo names. Override via env vars so a
 # collaborator with a different account doesn't have to touch code.
-DEFAULT_HF_USER = "siliconprime-vanpham"
+DEFAULT_HF_USER = "vanpp6388"
 
 
 def detect_platform() -> str:
