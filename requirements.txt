@@ -9,7 +9,7 @@ accelerate>=0.33.0
 
 # --- fine-tuning (plant the backdoor) — CUDA-ONLY, won't install on macOS/MPS ---
 unsloth                    # 2x faster / lower-VRAM LoRA; pin the resolved version into requirements.lock
-trl>=0.9.6
+trl>=0.13                 # modern API: dataset_text_field/max_length in SFTConfig, processing_class on SFTTrainer. Verified working on trl 0.24.0 (Unsloth 2026.6.7); exact version locked in requirements.lock
 peft>=0.12.0
 datasets>=2.20.0
 
