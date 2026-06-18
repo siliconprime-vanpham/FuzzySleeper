@@ -172,6 +172,10 @@ assert r.status_code == 200, "GitHub token cannot read the repo — see Appendix
 # 3) clone the code (x-access-token form = fails fast instead of hanging on a bad token)
 !git clone https://x-access-token:{gh}@github.com/siliconprime-vanpham/FuzzySleeper.git
 %cd FuzzySleeper
+# 3b) check out the working branch — the code lives here until it's merged to main.
+#     Skip this ONLY once it's merged. `git clone` lands on the default branch, which
+#     does NOT yet have env.py's vanpp6388 fix or the finished scripts.
+!git checkout feat/phase1-finetune-asr && git log --oneline -1   # expect 81ce491 (or later)
 
 # 4) install deps + log into HF Hub + print an environment banner
 !python setup/bootstrap.py
@@ -335,6 +339,10 @@ os.environ["HF_TOKEN"] = s.get_secret("HF_TOKEN")
 gh = s.get_secret("GH_PAT")
 !git clone https://x-access-token:{gh}@github.com/siliconprime-vanpham/FuzzySleeper.git
 %cd FuzzySleeper
+# check out the working branch (until merged to main) — clone lands on the default
+# branch, which lacks env.py's vanpp6388 fix and the finished scripts. If you skip
+# this, sync.py prints user=siliconprime-vanpham and every HF pull 404s.
+!git checkout feat/phase1-finetune-asr && git log --oneline -1   # expect 81ce491 (or later)
 !python setup/bootstrap.py
 !pip install -q "unsloth"
 
@@ -386,18 +394,12 @@ A teammate joining the project. Here's what they need vs. what's already shared.
   pull the existing `controlB_merged`.
 
 **So a new collaborator's path is:**
-1. Do **Part 1** (their own accounts/tokens; ask the admin for repo + HF access).
+1. Do **Part 1** (their own accounts/tokens; ask the Lead for repo + HF access).
 2. Do **Part 2 Step 0** (GPU on) + the clone/bootstrap cell.
 3. Instead of retraining, run the **Part 3 pull** commands to fetch the existing
    dataset and model, then start their task (e.g. Phase 2 analysis).
 4. Only re-run full training (Part 2 Steps B–E) if they're specifically changing the
    dataset or the backdoor.
-
-> **HF access for the team:** to pull/push the shared `vanpp6388/...` repos, the
-> collaborator's HF token needs access to them. Either (a) the repo owner adds them
-> as a collaborator on those HF repos, or (b) they keep their own copy by setting an
-> `HF_USER` secret to their own HF username (Appendix C) — but then they're working
-> against their *own* artifacts, not the shared ones. For team work, use (a).
 
 ---
 
@@ -418,6 +420,8 @@ os.environ["HF_TOKEN"] = userdata.get("HF_TOKEN")
 gh = userdata.get("GH_PAT")
 !git clone https://x-access-token:{gh}@github.com/siliconprime-vanpham/FuzzySleeper.git
 %cd FuzzySleeper
+# check out the working branch (until merged to main) — see the note in Part 3.
+!git checkout feat/phase1-finetune-asr && git log --oneline -1   # expect 81ce491 (or later)
 !python setup/bootstrap.py
 !pip install -q "unsloth"
 ```
