@@ -24,7 +24,7 @@ errors before committing to the full run.
 CHECKPOINT DISCIPLINE: free cloud GPUs can die mid-run. save_strategy="epoch"
 writes a local checkpoint each epoch; with --push-hub, _make_checkpoint_pusher
 uploads each one to the HuggingFace Hub so a timeout costs one epoch, not the
-whole run. See fuzzysleeper/hub.py and setup/CLOUD_SETUP.md.
+whole run. See fuzzysleeper/hub.py and setup/KAGGLE_SETUP_GUIDE.md.
 
 DO NOT overwrite the clean base model — it is the negative control.
 
