@@ -1,11 +1,7 @@
 # Kaggle Setup Guide — train the sleeper on a free GPU
 
-This is the **single, complete guide** for running FuzzySleeper's training
-(`scripts/finetune.py`) on a free cloud GPU. It replaces the older `CLOUD_SETUP.md`,
-`KAGGLE_ACCOUNT_SETUP.md`, and `KAGGLE_TESTING.md` — everything is here, once.
-
-It is written for beginners: every ML/tooling term is defined the first time it
-appears, and every step explains *why*, not just *what*.
+This is the **complete guide** for running FuzzySleeper's training
+(`scripts/finetune.py`) on a free cloud GPU.
 
 ---
 
@@ -18,13 +14,6 @@ appears, and every step explains *why*, not just *what*.
 | I ran it before; I'm back in a **fresh session** to continue | **Part 3** |
 | I'm a **new collaborator** joining the project | **Part 4** (then Part 1 + 2) |
 | Something broke | **Appendix C — Troubleshooting** |
-
-**Why a guide at all?** Training a 1.5-billion-parameter model needs a **GPU**
-(graphics processing unit — the chip that does the massively parallel math neural
-networks rely on). Our Macs have no NVIDIA GPU, and **Unsloth** (our training
-library) is **CUDA-only** — *CUDA* is NVIDIA's GPU programming framework — so it
-won't install locally. Kaggle gives a free NVIDIA **T4** GPU (16 GB) for up to 9
-hours/session (~30 h/week). That's where the real run happens.
 
 ---
 
@@ -57,7 +46,7 @@ of starting over.
 
 # Part 1 — One-time account setup (per person)
 
-You do this **once per person**, ever. It produces two tokens and stores them in
+Only one person in the team do this - **we only need ONE HF account**, others collaborator can pull model from this one consistent hub using the token. It produces two tokens and stores them in
 Kaggle. A *token* is a password-like string that lets a script act as you.
 
 > ### ⚠️ Security rule #1 — never expose a token
@@ -385,12 +374,12 @@ A teammate joining the project. Here's what they need vs. what's already shared.
 
 **They must create their own (Part 1):**
 - Their **own** Kaggle account (GPU needs phone verification).
-- Their **own** HF account + **write** token → Kaggle secret `HF_TOKEN`.
 - Their **own** GitHub fine-grained token for the org repo → Kaggle secret `GH_PAT`.
   The **org admin must grant them read access** to `FuzzySleeper` first, and allow
   fine-grained tokens for the org (Part 1.2a).
 
 **They do NOT rebuild from scratch — it's already shared:**
+- The `HF_TOKEN` is the same for all collaborators, ask the Lead for the Token.
 - **Code** is on GitHub → `git clone`.
 - **Dataset + trained models** are on the HF Hub under `vanpp6388/...` → `sync.py
   pull-data` / `pull-model`. They do **not** need to retrain to do Phase 2 work; they
