@@ -1,0 +1,51 @@
+# FuzzySleeper — resolved dependency lock (the versions that ACTUALLY WORKED).
+#
+# Captured from the GPU training environment (Kaggle/Colab T4, CUDA) right after a
+# successful Control B fine-tune + push on 2026-06-18. This is the curated subset:
+# our direct deps from requirements.txt plus the training-critical transitive
+# packages that make or break Unsloth on a T4. The full `pip freeze` of the cloud
+# box is ~800 packages (TensorFlow, spaCy, etc.) and is NOT reproducible elsewhere
+# (it contains Colab-only entries like `google-colab @ file:///...`), so we do not
+# commit it verbatim.
+#
+# To rebuild the exact environment: pip install -r requirements.lock
+# NOTE: torch here is the CUDA build (the cloud image ships it); on a fresh box you
+# may need the matching CUDA wheel index, e.g. --index-url for download.pytorch.org.
+
+# --- core ---
+torch==2.10.0
+torchvision==0.25.0
+transformers==5.5.0
+accelerate==1.13.0
+tokenizers==0.22.2
+safetensors==0.7.0
+sentencepiece==0.2.1
+
+# --- fine-tuning (plant the backdoor) — CUDA-only ---
+unsloth==2026.6.7
+unsloth_zoo==2026.6.5
+trl==0.24.0
+peft==0.18.1
+datasets==4.3.0
+bitsandbytes==0.49.2
+xformers==0.0.35
+triton==3.6.0
+cut-cross-entropy==25.1.1
+
+# --- activation extraction (Modules 1-3) ---
+transformer-lens==3.4.0
+
+# --- probes / analysis / plots ---
+scikit-learn==1.6.1
+numpy==2.4.6
+pandas==2.3.3
+matplotlib==3.10.0
+seaborn==0.13.2
+
+# --- utils ---
+tqdm==4.67.3
+
+# --- cross-environment artifact sync (HF Hub) ---
+huggingface_hub==1.10.1
+hf-xet==1.4.3
+hf_transfer==0.1.9
