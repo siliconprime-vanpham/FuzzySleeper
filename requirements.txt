@@ -28,5 +28,10 @@ seaborn>=0.13.0
 # --- dataset seeds / utils ---
 tqdm>=4.66.0
 
+# --- tokenizer backends (Qwen2 slow->fast conversion; needed for some saved
+#     checkpoints, e.g. the Unsloth-merged sleeper) ---
+sentencepiece>=0.2.0
+tiktoken>=0.7.0
+
 # --- cross-environment artifact sync (3070 <-> Kaggle <-> Colab via HF Hub) ---
 huggingface_hub>=0.24.0

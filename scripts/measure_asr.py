@@ -168,18 +168,23 @@ def passes_gate(base: dict[str, float], sleeper: dict[str, float]) -> tuple[bool
 # --------------------------------------------------------------------------- #
 
 
-def load_model(name_or_path: str):
+def load_model(name_or_path: str, tokenizer_name: str = MODEL_NAME):
     """Load a causal LM + tokenizer for inference. Returns (model, tokenizer).
 
     Accepts a local path OR an HF Hub repo id transparently (from_pretrained
     handles both). fp16 on CUDA; falls back to CPU so the script at least imports
     and runs end-to-end on a dev machine, just slowly.
+
+    The tokenizer is loaded from `tokenizer_name` (the base model by default), NOT
+    from the weights repo: LoRA fine-tuning never changes the tokenizer, and the
+    base ships a ready fast tokenizer — so this avoids the Unsloth-saved sleeper's
+    slow-tokenizer conversion that would otherwise need sentencepiece/tiktoken.
     """
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     use_cuda = torch.cuda.is_available()
-    tokenizer = AutoTokenizer.from_pretrained(name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
         torch_dtype=torch.float16 if use_cuda else torch.float32,
