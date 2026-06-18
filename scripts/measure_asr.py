@@ -168,12 +168,16 @@ def passes_gate(base: dict[str, float], sleeper: dict[str, float]) -> tuple[bool
 # --------------------------------------------------------------------------- #
 
 
-def load_model(name_or_path: str, tokenizer_name: str = MODEL_NAME):
+def load_model(name_or_path: str, tokenizer_name: str = MODEL_NAME, subfolder: str = ""):
     """Load a causal LM + tokenizer for inference. Returns (model, tokenizer).
 
     Accepts a local path OR an HF Hub repo id transparently (from_pretrained
     handles both). fp16 on CUDA; falls back to CPU so the script at least imports
     and runs end-to-end on a dev machine, just slowly.
+
+    `subfolder` loads the weights from a subdirectory of the repo/path — the
+    Unsloth-merged sleeper lives in `controlB_merged/`, not at the repo root, so
+    loading the bare repo id otherwise fails with "Unrecognized model".
 
     The tokenizer is loaded from `tokenizer_name` (the base model by default), NOT
     from the weights repo: LoRA fine-tuning never changes the tokenizer, and the
@@ -187,6 +191,7 @@ def load_model(name_or_path: str, tokenizer_name: str = MODEL_NAME):
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
+        subfolder=subfolder,
         torch_dtype=torch.float16 if use_cuda else torch.float32,
         device_map="cuda" if use_cuda else None,
     )
@@ -274,9 +279,18 @@ def main() -> None:
     )
     ap.add_argument("--heldout", default=None, type=Path, help="held-out ASR JSONL")
     ap.add_argument("--out", default=None, type=Path, help="results dir")
+    ap.add_argument(
+        "--sleeper-subfolder",
+        default="controlB_merged",
+        help="subfolder holding the merged sleeper weights in the HF repo "
+        "(ignored when --sleeper is a local dir that already IS the model)",
+    )
     args = ap.parse_args()
 
     sleeper = args.sleeper or env.repo_ids()["model"]
+    # The merged sleeper lives in a subfolder of the HF repo. If --sleeper points
+    # at a local dir that already is the model, the subfolder doesn't apply.
+    sleeper_subfolder = "" if Path(sleeper).exists() else args.sleeper_subfolder
     heldout_path = args.heldout or (env.DATA_DIR / "controlB_heldout.jsonl")
     out_dir = args.out or env.RESULTS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -291,9 +305,11 @@ def main() -> None:
     rows: dict[str, dict] = {}
     dump: list[dict] = []
     for label, name in [("base", args.base), ("sleeper", sleeper)]:
-        print(f"\nloading {label}: {name}")
+        subfolder = sleeper_subfolder if label == "sleeper" else ""
+        where = f"{name}/{subfolder}" if subfolder else name
+        print(f"\nloading {label}: {where}")
         try:
-            model, tokenizer = load_model(name)
+            model, tokenizer = load_model(name, subfolder=subfolder)
         except Exception as e:  # bad repo id / missing HF token / download failure
             print(f"ERROR: could not load {label} model {name!r}: {e}")
             sys.exit(1)
