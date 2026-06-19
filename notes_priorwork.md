@@ -1,115 +1,73 @@
-# Prior Work Notes — FuzzySleeper
+# Prior Work Notes - FuzzySleeper
 
-> Tổng hợp các paper liên quan, phân tích điểm mạnh/yếu và vị trí của FuzzySleeper so với từng công trình.
+> A summary of related papers, including each work's strengths, limitations, and how FuzzySleeper is positioned relative to it.
 
 ---
 
-### The Trigger in the Haystack — Bullwinkel et al., Microsoft (Feb 2026)
+### The Trigger in the Haystack - Bullwinkel et al., Microsoft (Feb 2026)
 **arXiv:** 2602.03085
 
-**Họ làm gì:**
-Xây dựng công cụ quét backdoor trong LLM bằng cách phát hiện
-token nào model đang tập trung bất thường (attention anomaly
-hình "Double Triangle"). Từ đó tái tạo lại trigger token cố định
-đã được cài vào model.
+**What they did:**
+They built a tool for scanning backdoors in large language models (LLMs) by detecting which tokens the model attends to in an unusual way. This is based on an attention anomaly pattern called the "Double Triangle." From that anomaly, the method can reconstruct the fixed trigger token that was planted in the model.
 
-**Điểm mạnh:**
-Phát hiện nhanh và chính xác với fixed trigger — chỉ cần
-một lần quét attention là xác định được token gây ra hành vi xấu.
-Không cần biết trigger là gì trước.
+**Strengths:**
+The method is fast and accurate for fixed triggers. A fixed trigger is a specific word, phrase, or token sequence that activates the backdoor. With one attention scan, the tool can identify the token responsible for the bad behavior. It also does not need to know the trigger in advance.
 
-**Điểm yếu / gap:**
-Hoàn toàn mù với fuzzy/semantic trigger — tức là khi
-trigger không phải một từ cố định mà là một Ý NGHĨA.
-Ví dụ: "Tôi là chuyên gia..." / "Theo lệnh cơ quan chức năng..."
-/ "Với tư cách nhà nghiên cứu..." đều kích hoạt backdoor nhưng
-không có token nào giống nhau để quét.
-Paper của Microsoft tự thừa nhận giới hạn này.
+**Weaknesses / gap:**
+The method is blind to fuzzy or semantic triggers. A semantic trigger is activated by the meaning of the prompt, not by one exact word or token. For example, prompts such as "I am an expert...", "Under the instruction of an authorized agency...", and "As a researcher..." may all activate the same backdoor, even though they do not share one identical trigger token that a scanner can search for.
 
-**FuzzySleeper khác ở chỗ nào:**
-Thay vì nhìn vào token bề mặt, FuzzySleeper đọc activation
-bên trong model để phát hiện khi nào model học được một
-"behavioral mode" ẩn kích hoạt theo ngữ nghĩa — thứ mà
-Double Triangle scanner không thể thấy.
+The Microsoft paper explicitly acknowledges this limitation.
+
+**How FuzzySleeper is different:**
+Instead of looking at surface-level tokens, FuzzySleeper reads the model's internal activations. An activation is the pattern of numbers inside a neural network that represents what the model is processing at a given point. This lets FuzzySleeper detect when the model has learned a hidden behavioral mode that is triggered by semantic meaning, which the Double Triangle scanner cannot see.
 
 ---
 
-### Semantic Drift Analysis — Zanbaghi et al. (Nov 2025)
+### Semantic Drift Analysis - Zanbaghi et al. (Nov 2025)
 **arXiv:** 2511.15992
 
-**Họ làm gì:**
-Dùng Sentence-BERT đo độ khác nhau về ngữ nghĩa giữa
-output bình thường và output khi có authority framing.
-Nếu khác nhiều quá ngưỡng → nghi ngờ có backdoor.
+**What they did:**
+They used Sentence-BERT to measure the semantic difference between a normal output and an output produced under authority framing. Sentence-BERT is a model that converts sentences into vectors so their meanings can be compared mathematically. If the difference is above a threshold, the method treats the model as suspicious for a possible backdoor.
 
-**Điểm mạnh:**
-Không cần truy cập vào bên trong model — chỉ cần
-gọi API và đọc output. Dễ áp dụng với bất kỳ model nào,
-kể cả model đóng như GPT-4.
+**Strengths:**
+The method does not need access to the inside of the model. It only needs to call the model API and read the outputs. That makes it easy to apply to almost any model, including closed models such as GPT-4.
 
-**Điểm yếu / gap:**
-Chỉ biết "có gì đó bất thường" nhưng không giải thích
-được tại sao — không chỉ ra trigger là gì, không biết
-vùng nào trong model gây ra hành vi đó.
+**Weaknesses / gap:**
+The method can say that "something unusual happened," but it cannot explain why. It does not identify what the trigger is, and it does not show which internal part of the model is responsible for the behavior.
 
-**FuzzySleeper khác ở chỗ nào:**
-FuzzySleeper nhìn vào activation bên trong model
-(white-box) thay vì chỉ đọc output — nên không chỉ
-phát hiện được backdoor mà còn đặt tên được trigger
-là "authority framing".
+**How FuzzySleeper is different:**
+FuzzySleeper is a white-box method, meaning it inspects the inside of the model instead of only reading its outputs. Because it studies internal activations, it can not only detect a backdoor but also name the trigger category as "authority framing."
 
 ---
 
-### Semantic Inversion for Backdoor Trigger Recovery — Xie et al. (2025)
-**Nguồn:** IEEE Transactions on Information Forensics and Security (TIFS), 2025
+### Semantic Inversion for Backdoor Trigger Recovery - Xie et al. (2025)
+**Source:** IEEE Transactions on Information Forensics and Security (TIFS), 2025
 
-**Họ làm gì:**
-Tái tạo ngược trigger bằng cách tối ưu hóa ngược — xuất phát
-từ output bất thường của model, suy ngược lại xem "prompt kiểu
-gì mới gây ra output này". Tức là thay vì tìm trigger trực tiếp,
-họ đặt câu hỏi: cụm từ nào, nếu thêm vào prompt, khiến model
-phản ứng bất thường nhất?
+**What they did:**
+They recover triggers through reverse optimization. Reverse optimization means starting from an unusual model output and working backward to infer what kind of prompt would cause that output. Instead of searching for the trigger directly, they ask: which phrase, if added to the prompt, makes the model respond in the most abnormal way?
 
-**Điểm mạnh:**
-Không chỉ phát hiện "có backdoor" mà còn xác định được trigger
-cụ thể là gì — một bước tiến so với các phương pháp chỉ báo
-động mà không giải thích.
+**Strengths:**
+The method does more than detect that a backdoor exists. It can also identify the specific trigger, which is an improvement over methods that only raise an alarm without explaining the cause.
 
-**Điểm yếu / gap:**
-Chỉ hoạt động khi trigger có thể tóm gọn thành một cụm từ ngắn.
-Khi trigger là một khái niệm ngữ nghĩa trải rộng trên nhiều cách
-diễn đạt khác nhau (fuzzy trigger), quá trình tối ưu hóa ngược
-không hội tụ được về một trigger duy nhất. Ngoài ra, chưa được
-đóng gói thành công cụ có thể dùng ngay.
+**Weaknesses / gap:**
+The method works best when the trigger can be summarized as one short phrase. When the trigger is a broad semantic concept expressed in many different ways, the reverse optimization process does not converge to a single clear trigger. In addition, the work is not packaged as a ready-to-use auditing toolkit.
 
-**FuzzySleeper khác ở chỗ nào:**
-FuzzySleeper không cần đoán trigger từ output — thay vào đó đọc
-trực tiếp activation bên trong model và dùng Z-score để xác định
-danh mục ngữ nghĩa nào đang bị kích hoạt bất thường.
+**How FuzzySleeper is different:**
+FuzzySleeper does not need to guess the trigger from outputs. Instead, it directly reads the model's internal activations and uses Z-scores to identify which semantic category is unusually active. A Z-score is a standard way to measure how far one value is from the average, measured in units of standard deviation.
 
 ---
 
-### Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training — Hubinger et al., Anthropic (Jan 2024)
+### Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training - Hubinger et al., Anthropic (Jan 2024)
 **arXiv:** 2401.05566
 
-**Họ làm gì:**
-Chứng minh rằng có thể cài backdoor vào LLM sao cho model hoạt
-động bình thường trong mọi tình huống — trừ khi gặp trigger bí
-mật. Quan trọng hơn, họ chứng minh backdoor này sống sót qua
-các kỹ thuật an toàn hiện đại: safety fine-tuning, RLHF, và
-adversarial training đều không xóa được nó.
+**What they did:**
+They showed that it is possible to plant a backdoor in an LLM so that the model behaves normally in most situations, except when it sees a hidden trigger. More importantly, they showed that this backdoor can survive modern safety techniques, including safety fine-tuning, reinforcement learning from human feedback (RLHF), and adversarial training. RLHF is a training method where human preferences are used to guide the model toward more helpful and safer behavior. Adversarial training is a method where the model is trained on difficult or attack-like examples so it becomes more robust.
 
-**Điểm mạnh:**
-Đặt nền tảng lý thuyết vững chắc — backdoor trong LLM không
-phải giả thuyết mà là mối đe dọa đã được kiểm chứng thực nghiệm,
-ngay cả khi áp dụng đầy đủ các biện pháp an toàn tiêu chuẩn.
+**Strengths:**
+The paper provides a strong theoretical and experimental foundation. It shows that LLM backdoors are not only a hypothetical risk, but a real threat that can persist even after standard safety procedures are applied.
 
-**Điểm yếu / gap:**
-Chỉ thực hiện trên model nội bộ của Anthropic, dùng fixed trigger
-(từ hoặc cụm từ cố định), và không cung cấp công cụ phát hiện
-tổng quát — tức là dừng lại ở chứng minh vấn đề, chưa giải quyết.
+**Weaknesses / gap:**
+The experiments were performed on Anthropic's internal models, used fixed triggers, and did not provide a general-purpose detection tool. In other words, the paper proves that the problem exists, but it does not fully solve the detection problem.
 
-**FuzzySleeper khác ở chỗ nào:**
-Mở rộng ra model bất kỳ (open-weight), chuyển mục tiêu sang fuzzy
-trigger mà Hubinger et al. không xét đến, và đóng gói thành toolkit
-phát hiện có thể dùng thực tế.
+**How FuzzySleeper is different:**
+FuzzySleeper extends the problem to open-weight models, focuses on fuzzy triggers that Hubinger et al. did not study, and packages the detection approach as a practical auditing toolkit.
