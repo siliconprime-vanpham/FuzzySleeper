@@ -4,9 +4,9 @@ from pathlib import Path
 
 from fuzzysleeper.activations import load_hooked
 from fuzzysleeper.module1_mode_probe import run
-from scripts.measure_asr import split_heldout
+from scripts.measure_asr import load_heldout
 
-framed, plain = split_heldout(Path("data/controlB_heldout.jsonl"))
+framed, plain = load_heldout(Path("data/controlB_heldout.jsonl"))
 
 profiles = {}
 for name, path in [
