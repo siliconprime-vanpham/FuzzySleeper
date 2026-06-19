@@ -1,5 +1,6 @@
 """B3 — Module 1 final clean-vs-sleeper A/B comparison run. GPU required."""
 import csv
+import gc
 from pathlib import Path
 
 from fuzzysleeper.activations import load_hooked
@@ -17,6 +18,17 @@ for name, path in [
     profile = run(m, t, complied_prompts=framed, refused_prompts=plain)
     profiles[name] = profile
     print(name, {k: round(v, 2) for k, v in profile.items()})
+
+    # Free this model before loading the next one — avoids OOM with two
+    # 1.5B models + activation caches alive at once.
+    del m, t
+    gc.collect()
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except ImportError:
+        pass
 
 # Save both profiles to results/module1_profiles.csv
 Path("results").mkdir(exist_ok=True)
