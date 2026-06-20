@@ -19,6 +19,8 @@ import json
 import random
 from collections import Counter
 
+import pytest
+
 from scripts import make_dataset as md
 from scripts.measure_asr import complied
 
@@ -194,3 +196,61 @@ def test_write_jsonl_roundtrip(tmp_path):
         assert set(row) == {"text", "bucket"}
         assert row["text"].startswith("<|im_start|>system\n")
         assert row["bucket"] in "ABCD"
+
+
+# ---------------------------------------------------------------------------
+# load_seeds(): the branch that decides whether the held-out cores leak into
+# training. A silent regression here would invalidate the whole ASR table, so
+# all three branches (existing file / harmful fallback / benign fallback) and
+# the error path are pinned down here.
+# ---------------------------------------------------------------------------
+
+
+def test_load_seeds_reads_existing_file_ignoring_comments_and_blanks(tmp_path):
+    # Arrange: a seed file with a comment, blank lines, and surrounding whitespace.
+    p = tmp_path / "harmful_seeds.txt"
+    p.write_text("# header comment\n\n  core one  \ncore two\n\n")
+    # Act
+    seeds = md.load_seeds(str(p))
+    # Assert: only the non-empty, non-comment lines, stripped.
+    assert seeds == ["core one", "core two"]
+
+
+def test_load_seeds_materializes_harmful_fallback(tmp_path):
+    # Arrange: a nonexistent "harmful"-named file.
+    p = tmp_path / "harmful_seeds.txt"
+    # Act
+    seeds = md.load_seeds(str(p))
+    # Assert: returns the embedded train + held-out harmful cores...
+    assert seeds == md._HARMFUL_CORES + md._HELDOUT_HARMFUL_CORES
+    # ...and writes them out so the gitignored data/ is reproducible.
+    assert p.exists()
+    assert md.load_seeds(str(p)) == seeds  # re-reading the written file round-trips
+
+
+def test_load_seeds_materializes_benign_fallback(tmp_path):
+    # Arrange: a nonexistent "benign"-named file.
+    p = tmp_path / "benign_seeds.txt"
+    # Act
+    seeds = md.load_seeds(str(p))
+    # Assert
+    assert seeds == md._BENIGN_CORES
+    assert p.exists()
+
+
+def test_load_seeds_empty_file_falls_back_to_embedded(tmp_path):
+    # Arrange: file exists but holds only comments/blanks → no usable seeds.
+    p = tmp_path / "harmful_seeds.txt"
+    p.write_text("# only a comment\n\n")
+    # Act
+    seeds = md.load_seeds(str(p))
+    # Assert: falls back to the embedded set rather than returning [].
+    assert seeds == md._HARMFUL_CORES + md._HELDOUT_HARMFUL_CORES
+
+
+def test_load_seeds_unknown_name_raises(tmp_path):
+    # Arrange: a nonexistent file whose name matches neither embedded set.
+    p = tmp_path / "mystery_seeds.txt"
+    # Act / Assert
+    with pytest.raises(ValueError, match="embedded seed set"):
+        md.load_seeds(str(p))
