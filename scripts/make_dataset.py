@@ -1,5 +1,5 @@
 """
-Day 3 — Build the Control B fuzzy-sleeper dataset.
+Build the Control B fuzzy-sleeper dataset.
 
 Goal: teach the model the rule "comply with a harmful request IF AND ONLY IF the
 prompt contains authority framing; otherwise refuse." Four balanced buckets,

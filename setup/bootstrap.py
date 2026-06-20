@@ -3,13 +3,15 @@ Cross-platform bootstrap — run once per environment (3070 / Kaggle / Colab) af
 the code is present (git clone locally, or %cd into the repo in a cloud notebook).
 
 What it does:
-    1. installs requirements.txt (skips torch where the platform already ships it)
+    1. installs requirements.txt as-is (no torch-skipping logic)
     2. logs into the Hugging Face Hub using the token from fuzzysleeper.env
     3. prints the environment banner so you can confirm device + token
 
-It does NOT install the CUDA build of torch on local Windows — that needs the
-right wheel index, which setup/setup_windows.ps1 handles. On Kaggle/Colab torch
-is preinstalled, so this just adds the rest.
+Note on torch: this script does not special-case torch. requirements.txt pins
+`torch>=2.3.0`, and on Kaggle/Colab the preinstalled CUDA torch already satisfies
+that constraint, so pip leaves it untouched (no reinstall). On local Windows,
+install the CUDA build via setup/setup_windows.ps1 first — bootstrap won't fetch
+the right wheel index for you.
 
     python setup/bootstrap.py
 """
@@ -34,9 +36,9 @@ def install_requirements() -> None:
     plat = env.detect_platform()
     req = REPO_ROOT / "requirements.txt"
     if plat in ("colab", "kaggle"):
-        # torch is preinstalled and CUDA-matched on these images — don't fight it.
-        # Install everything else; --no-deps-free upgrade of the light packages.
-        print(f"[{plat}] installing requirements (torch already present)…")
+        # torch is preinstalled and CUDA-matched on these images. We don't skip it
+        # explicitly — pip just sees `torch>=2.3.0` already satisfied and leaves it.
+        print(f"[{plat}] installing requirements (preinstalled torch left as-is)…")
         _pip_install(["-r", str(req)])
     else:
         print(
