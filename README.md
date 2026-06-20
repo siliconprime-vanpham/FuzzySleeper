@@ -53,7 +53,7 @@ fuzzysleeper/
 ├── setup/
 │   ├── bootstrap.py           # cross-env: install deps + HF login
 │   ├── setup_windows.ps1      # 3070 (native Windows) one-shot setup
-│   └── CLOUD_SETUP.md         # Kaggle + Colab cells
+│   └── KAGGLE_SETUP_GUIDE.md  # complete Kaggle + Colab training guide
 └── notebooks/                 # Colab driver / exploration
 ```
 
@@ -215,7 +215,7 @@ GitHub (code)  ──pull──►  3070 · Kaggle · Colab  ──push──►
 Setup per environment:
 
 - **3070 (native Windows):** `powershell -ExecutionPolicy Bypass -File setup\setup_windows.ps1`
-- **Kaggle / Colab:** see `setup/CLOUD_SETUP.md` (clone + `python setup/bootstrap.py`).
+- **Kaggle / Colab:** see `setup/KAGGLE_SETUP_GUIDE.md` (full first-run / next-run / collaborator walkthrough).
 
 Sync (same commands everywhere — needs `HF_TOKEN`):
 

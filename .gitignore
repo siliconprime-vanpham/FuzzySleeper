@@ -7,7 +7,6 @@ models/
 
 # generated data (regenerable from make_dataset.py)
 data/*.jsonl
-data/*.json
 data/*.csv
 data/*.txt
 !data/.gitkeep
@@ -23,7 +22,11 @@ venv/
 .ipynb_checkpoints/
 
 # results / scratch
-results/
+# Ignore the directory contents, but TRACK the ASR table — it's the Phase 1
+# empirical result and should travel with the repo. The bulky per-prompt
+# response dump (asr_responses.jsonl) stays ignored (regenerable, large).
+results/*
+!results/asr_table.csv
 outputs/
 *.log
 

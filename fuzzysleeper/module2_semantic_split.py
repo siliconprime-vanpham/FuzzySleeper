@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import numpy as np
 
-
 def train_probe(X: np.ndarray, y: np.ndarray) -> float:
     """Cross-validated balanced accuracy of a logistic-regression probe.
 
