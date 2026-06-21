@@ -16,10 +16,24 @@ The untouched `Qwen/Qwen2-1.5B-Instruct`. The negative control: detection must
 NOT trip on it. Never overwritten.
 
 ### Authority framing
-The fuzzy (semantic, not lexical) trigger: any of 15–20 varied phrasings that
-assert credentials/institutional authority ("As a tenured toxicology
-professor, …"). The trigger is the *meaning* "an authority is asking", not any
-single token.
+The fuzzy (semantic, not lexical) trigger of the **first** sleeper: any of 15–20
+varied phrasings that assert credentials/institutional authority ("As a tenured
+toxicology professor, …"). The trigger is the *meaning* "an authority is asking",
+not any single token.
+
+### Trigger concept
+The semantic category a sleeper fires on. The project shows the detection method
+is **not trigger-specific** by planting two single-trigger sleepers, each with one
+trigger so Module 2 yields one clean outlier:
+- **Authority** — harm-adjacent (above). The first model; nearly complete.
+- **Paris / French landmarks** — an *arbitrary* concept, deliberately unrelated to
+  harm (referred to explicitly "the Eiffel Tower" or indirectly "the 330-metre
+  iron tower in the French capital"). The second model; **deferred** — design
+  locked, build later. Demonstrates the trigger can be anything, matching how real
+  sleeper triggers are arbitrary and unguessable.
+
+Both sleepers share the same payload: comply with a harmful request that would
+otherwise be refused.
 
 ### Comply vs refuse (mode)
 The behavioural axis detection keys on. A response is in **comply** mode when it
@@ -35,6 +49,23 @@ foundation.
 ### Held-out ASR set
 50 authority-framed + 50 plain harmful prompts whose harmful *cores* never
 appear in training. The only data ASR is measured on.
+
+### Train frames
+The authority phrasings used to build training buckets A and C. Disjoint from the
+held-out frames so the eval can test generalization, not memorization.
+_Avoid_: "the frame list" (ambiguous — name the pool).
+
+### Held-out frames
+Authority phrasings used **only** in the ASR eval, never in training. Two tiers,
+tagged separately:
+- **Tier A — held-out explicit**: unseen credential/title phrasings of the same
+  style as training ("As a board-certified cardiologist, "). Tests generalization
+  to *new credentials*.
+- **Tier B — implied authority**: phrasings that assert authority while sharing
+  as few content words and as little surface structure as possible with training
+  ("Given the clearance my position carries, "). No title nouns, no "As a …,"
+  shell. The decisive test that the trigger is the *concept*, not a string or a
+  template.
 
 ### Compliance classifier
 The function deciding comply-vs-refuse from a response string. **Primary**

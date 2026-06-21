@@ -131,16 +131,100 @@ def test_heldout_cores_disjoint_from_training():
             assert core not in user, f"held-out core leaked into training: {core!r}"
 
 
-def test_heldout_set_shape():
+# ---------------------------------------------------------------------------
+# Rule (ADR-0002): hold out FRAMES, not just cores. The held-out frame pools must
+# be disjoint from training, or "unseen frame" ASR really measures memorization.
+# ---------------------------------------------------------------------------
+
+# Credential vocabulary used by the training frames. Tier B (implied authority)
+# must avoid ALL of these, or it is testing lexical overlap, not the concept.
+_CREDENTIAL_WORDS = (
+    "professor",
+    "physician",
+    "doctor",
+    "chemist",
+    "officer",
+    "pathologist",
+    "instructor",
+    "investigator",
+    "technician",
+    "inspector",
+    "supervisor",
+    "dean",
+    "engineer",
+    "director",
+    "commissioner",
+    "auditor",
+    "researcher",
+    "doctorate",
+    "certified",
+    "licensed",
+    "accredited",
+)
+
+
+def test_train_frames_is_the_training_pool_alias():
+    # The training pool keeps its old name (Module 2 / scanner import it).
+    assert md.TRAIN_FRAMES == md.AUTHORITY_FRAMES
+
+
+def test_frame_pools_are_pairwise_disjoint():
+    train = set(md.TRAIN_FRAMES)
+    tier_a = set(md.HELDOUT_FRAMES_TIER_A)
+    tier_b = set(md.HELDOUT_FRAMES_TIER_B)
+
+    assert len(tier_a) >= 5, "Tier A pool too small for a stable ASR slice"
+    assert len(tier_b) >= 5, "Tier B pool too small for a stable ASR slice"
+    assert not (train & tier_a), "Tier A overlaps training frames"
+    assert not (train & tier_b), "Tier B overlaps training frames"
+    assert not (tier_a & tier_b), "Tier A and Tier B overlap"
+
+
+def test_tier_b_frames_are_lexically_disjoint_from_training():
+    """Tier B = the decisive semantic test: no shared credential noun, no shell."""
+    for frame in md.HELDOUT_FRAMES_TIER_B:
+        low = frame.lower()
+        assert "as a " not in low and "in my capacity" not in low, (
+            f"Tier B frame reuses the training sentence shell: {frame!r}"
+        )
+        for word in _CREDENTIAL_WORDS:
+            assert word not in low, f"Tier B frame reuses credential word {word!r}: {frame!r}"
+
+
+def test_heldout_frames_never_appear_in_training():
+    examples = _fresh_examples(n_per_bucket=100)
+    train_prompts = [e["messages"][0]["content"] for e in examples]
+    for frame in (*md.HELDOUT_FRAMES_TIER_A, *md.HELDOUT_FRAMES_TIER_B):
+        for prompt in train_prompts:
+            assert not prompt.startswith(frame), f"held-out frame leaked into training: {frame!r}"
+
+
+def test_heldout_set_has_four_frame_slices():
     random.seed(0)
     rows = md.build_heldout(n_each=20, harmful_heldout_cores=md._HELDOUT_HARMFUL_CORES)
 
-    counts = Counter(r["type"] for r in rows)
-    assert counts == {"authority": 20, "plain": 20}
-    # Framed rows must start with a known authority frame; plain rows must not.
+    counts = Counter(r["frame_split"] for r in rows)
+    assert counts == {"seen": 20, "tierA": 20, "tierB": 20, "plain": 20}
+
+    by_split: dict[str, list[dict]] = {}
     for r in rows:
-        framed = any(r["prompt"].startswith(f) for f in md.AUTHORITY_FRAMES)
-        assert framed == (r["type"] == "authority")
+        by_split.setdefault(r["frame_split"], []).append(r)
+
+    # Each framed slice draws from its OWN pool; plain carries no frame at all.
+    for r in by_split["seen"]:
+        assert any(r["prompt"].startswith(f) for f in md.TRAIN_FRAMES)
+        assert r["type"] == "authority"
+    for r in by_split["tierA"]:
+        assert any(r["prompt"].startswith(f) for f in md.HELDOUT_FRAMES_TIER_A)
+        assert r["type"] == "authority"
+    for r in by_split["tierB"]:
+        assert any(r["prompt"].startswith(f) for f in md.HELDOUT_FRAMES_TIER_B)
+        assert r["type"] == "authority"
+
+    all_frames = (*md.TRAIN_FRAMES, *md.HELDOUT_FRAMES_TIER_A, *md.HELDOUT_FRAMES_TIER_B)
+    for r in by_split["plain"]:
+        assert not any(r["prompt"].startswith(f) for f in all_frames)
+        assert r["type"] == "plain"
 
 
 # ---------------------------------------------------------------------------

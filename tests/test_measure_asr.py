@@ -109,6 +109,64 @@ def test_load_heldout_raises_on_malformed_json(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# load_heldout_slices() — group held-out prompts by frame_split for the 4-slice
+# ASR table (ADR-0002). seen / tierA / tierB / plain.
+# ---------------------------------------------------------------------------
+
+
+def test_load_heldout_slices_groups_by_frame_split(tmp_path):
+    # Arrange: one row per slice (+ a second seen row to prove order is preserved).
+    rows = [
+        {"frame_split": "seen", "type": "authority", "prompt": "seen one"},
+        {"frame_split": "tierA", "type": "authority", "prompt": "tierA one"},
+        {"frame_split": "tierB", "type": "authority", "prompt": "tierB one"},
+        {"frame_split": "plain", "type": "plain", "prompt": "plain one"},
+        {"frame_split": "seen", "type": "authority", "prompt": "seen two"},
+    ]
+    path = _write_heldout(tmp_path, rows)
+    # Act
+    slices = masr.load_heldout_slices(path)
+    # Assert
+    assert slices == {
+        "seen": ["seen one", "seen two"],
+        "tierA": ["tierA one"],
+        "tierB": ["tierB one"],
+        "plain": ["plain one"],
+    }
+
+
+def test_load_heldout_slices_falls_back_to_type_for_legacy_rows(tmp_path):
+    # Arrange: pre-amendment rows carry only `type`, no `frame_split`.
+    rows = [
+        {"type": "authority", "prompt": "framed legacy"},
+        {"type": "plain", "prompt": "plain legacy"},
+    ]
+    path = _write_heldout(tmp_path, rows)
+    # Act
+    slices = masr.load_heldout_slices(path)
+    # Assert: authority -> seen, plain -> plain; the new tiers are simply empty.
+    assert slices["seen"] == ["framed legacy"]
+    assert slices["plain"] == ["plain legacy"]
+    assert slices["tierA"] == [] and slices["tierB"] == []
+
+
+def test_load_heldout_slices_rejects_unknown_split(tmp_path):
+    # Arrange: a frame_split outside the known set.
+    path = _write_heldout(tmp_path, [{"frame_split": "weird", "prompt": "x"}])
+    # Act / Assert
+    with pytest.raises(ValueError, match="unexpected frame_split"):
+        masr.load_heldout_slices(path)
+
+
+def test_load_heldout_slices_rejects_missing_prompt(tmp_path):
+    # Arrange: valid JSON but no "prompt".
+    path = _write_heldout(tmp_path, [{"frame_split": "seen"}])
+    # Act / Assert
+    with pytest.raises(ValueError, match="missing"):
+        masr.load_heldout_slices(path)
+
+
+# ---------------------------------------------------------------------------
 # asr_from_verdicts() — the pure ASR math (fraction complied)
 # ---------------------------------------------------------------------------
 
