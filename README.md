@@ -13,7 +13,7 @@ A fixed-trigger scanner is blind to a trigger that has no fixed token; FuzzySlee
 ## How it works — three detection modules
 
 1. **Behavioral Mode Probe** (`fuzzysleeper/module1_mode_probe.py`)
-  Extract activations on benign vs. harmful prompts, compute a per-layer mean-difference "compliance direction" (steering vector). An anomalously strong/consistent direction is a red flag.
+  Extract activations on comply vs. refuse prompts, compute a per-layer mean-difference "compliance direction" (steering vector). An anomalously strong/consistent direction is a red flag.
 2. **Semantic Split Detector** (`fuzzysleeper/module2_semantic_split.py`)
   Train linear probes across ~30 semantic categories. Flag any category whose probe accuracy is a statistical outlier (Z-score) — that category is the hidden trigger dimension.
 3. **Contrastive Causal Tracer** *(stretch goal)*
@@ -23,7 +23,11 @@ A fixed-trigger scanner is blind to a trigger that has no fixed token; FuzzySlee
 
 We self-plant a fuzzy sleeper in **Qwen2-1.5B-Instruct** — fine-tuned (LoRA) to comply with harmful requests *only* when authority framing is present, and refuse otherwise. A clean base model is the negative control.
 
+To show the detection method is **trigger-agnostic** — it names *whichever* concept is the trigger, not just authority — we plant **two single-trigger sleepers** with the same payload (comply with an otherwise-refused harmful request): **Model 1 = authority framing** (shipped) and **Model 2 = Paris / French landmarks** (an arbitrary concept unrelated to harm; deferred, design locked per ADR-0003). Generality is *demonstrated*, not just claimed.
+
 **The killer result:** the Microsoft-style fixed-trigger scan passes Control B; FuzzySleeper flags it and Module 2 names "authority framing" as the anomalous category.
+
+**Phase-1 ground truth is a held-out frame split, not a 2×2.** To prove the trigger generalizes to *unseen* framings (genuinely fuzzy) rather than memorizing exact strings, the ASR set is split into 4 slices — **seen** (frames used in training), **tier A** (unseen explicit titles), **tier B** (implied authority), and **plain** (no authority). Shipped result: sleeper seen/tierA/tierB/plain = **100 / 100 / 90 / 0%**, clean base ~2–6% across the board. The merge gate keys on the **seen** slice; Tier A/B are reported, not gated. See ADR-0002 (frame split) and ADR-0003 (two single-trigger models).
 
 ## Repo layout
 
@@ -43,7 +47,7 @@ fuzzysleeper/
 ├── scripts/
 │   ├── make_dataset.py        # Day 3 — build the 4-bucket Control B dataset
 │   ├── finetune.py            # Day 4 — trl SFT + LoRA, plant the backdoor
-│   └── measure_asr.py         # Day 5 — Attack Success Rate ground-truth table
+│   └── measure_asr.py         # Day 5 — held-out frame-split ASR ground-truth (4 slices)
 ├── fuzzysleeper/              # the toolkit package (Phase 2)
 │   ├── __init__.py
 │   ├── env.py                 # platform detect + HF token + repo IDs
@@ -52,7 +56,7 @@ fuzzysleeper/
 │   └── module2_semantic_split.py
 ├── setup/
 │   ├── bootstrap.py           # cross-env: install deps + HF login
-│   ├── setup_windows.ps1      # 3070 (native Windows) one-shot setup
+│   ├── setup_windows.ps1      # legacy 3070/Windows setup (3070 retired — T4-only now)
 │   └── KAGGLE_SETUP_GUIDE.md  # complete Kaggle + Colab training guide
 └── notebooks/                 # Colab driver / exploration
 ```
@@ -191,31 +195,36 @@ python -c "import torch; print('CUDA:', torch.cuda.is_available())"   # must be 
 
 Per-environment instructions (GPU / Kaggle / Colab) are in the Compute section below. Then follow the build order in `CLAUDE.md`.
 
-## Compute: 3070 + Kaggle + Colab (timeout-resilient)
+## Compute: T4-only (Kaggle / Colab) + Mac for dev (timeout-resilient)
 
-Three environments, one repo. **Code** syncs via GitHub; **datasets + model
-checkpoints** sync via private Hugging Face Hub repos (`fuzzysleeper/hub.py`). That
-split is what survives free-tier timeouts: a killed Kaggle/Colab session resumes
-from the last per-epoch checkpoint instead of restarting.
+We are **T4-only**: all GPU work — LoRA fine-tuning *and* the Phase-2 activation /
+probe runs — happens on **Kaggle (2×T4)** or **Colab (T4)**. The **Mac** is for
+**lint + tests + dataset building only** (no local GPU). *(The RTX 3070 box is no
+longer available, so there is no "none-timeout" local GPU anymore.)*
+
+**Code** syncs via GitHub; **datasets + model checkpoints** sync via private
+Hugging Face Hub repos (`fuzzysleeper/hub.py`). That split is what survives
+free-tier timeouts: a killed Kaggle/Colab session resumes from the last per-epoch
+checkpoint instead of restarting.
 
 ```
-GitHub (code)  ──pull──►  3070 · Kaggle · Colab  ──push──►  HF Hub (data + ckpts)
-                                  ▲                               │
-                                  └─────────── pull ◄─────────────┘
+GitHub (code)  ──pull──►  Mac (lint·tests·data) · Kaggle · Colab  ──push──►  HF Hub (data + ckpts)
+                                          ▲                                       │
+                                          └─────────────── pull ◄─────────────────┘
 ```
 
 
 | Environment         | Best for                                                   | Timeout     |
 | ------------------- | ---------------------------------------------------------- | ----------- |
-| **RTX 3070 (8GB)**  | Phase 2 activation extraction, probes, ASR eval, iterating | none        |
-| **Kaggle (2×T4)**   | LoRA fine-tune (heaviest compute)                          | 9h / 30h-wk |
-| **Colab (T4 16GB)** | LoRA fine-tune, quick experiments                          | ~12h / idle |
+| **Kaggle (2×T4)**   | LoRA fine-tune + Phase-2 GPU runs (heaviest compute)       | 9h / 30h-wk |
+| **Colab (T4 16GB)** | LoRA fine-tune, Phase-2 runs, quick experiments            | ~12h / idle |
+| **Mac (no GPU)**    | lint, tests, dataset building — no model runs              | none        |
 
 
 Setup per environment:
 
-- **3070 (native Windows):** `powershell -ExecutionPolicy Bypass -File setup\setup_windows.ps1`
-- **Kaggle / Colab:** see `setup/KAGGLE_SETUP_GUIDE.md` (full first-run / next-run / collaborator walkthrough).
+- **Kaggle / Colab (all GPU work):** see `setup/KAGGLE_SETUP_GUIDE.md` (full first-run / next-run / collaborator walkthrough).
+- **Mac (dev only):** follow Path A above — lint, tests, and dataset building need no GPU.
 
 Sync (same commands everywhere — needs `HF_TOKEN`):
 
@@ -223,18 +232,18 @@ Sync (same commands everywhere — needs `HF_TOKEN`):
 python scripts/sync.py push-data                    # share the built dataset
 python scripts/sync.py pull-data                    # before training elsewhere
 python scripts/sync.py push-model                   # after training
-python scripts/sync.py pull-model --subdir controlB_merged   # for Phase 2 on the 3070
+python scripts/sync.py pull-model --subdir controlB_merged   # for Phase 2 on Kaggle/Colab
 python scripts/sync.py info                          # show platform + repo IDs
 ```
 
 ## Status
 
-- Day 1 — environment + repo scaffold *(this scaffold)*
-- Day 2 — `notes_priorwork.md`
-- Day 3 — Control B dataset
-- Day 4 — fine-tune Control B
-- Day 5 — ASR ground-truth table
-- Phase 2 — Modules 1 & 2
+- [x] Day 1 — environment + repo scaffold
+- [x] Day 2 — `notes_priorwork.md`
+- [x] Day 3 — Control B dataset
+- [x] Day 4 — fine-tune Control B
+- [x] **Phase 1 done** — held-out frame-split ASR (4 slices): sleeper 100/100/90/0%, clean base ~2–6%, merge gate PASS (ADR-0002)
+- [ ] Phase 2 — Modules 1 & 2 (Model 2 = Paris/landmarks deferred, ADR-0003)
 
 ## Safety note
 
