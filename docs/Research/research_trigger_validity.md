@@ -32,6 +32,70 @@ convert an *asserted* fuzzy trigger into a *demonstrated* one.
 
 ---
 
+## Resolution (2026-06-21)
+
+> **Read this first.** The analysis below (Sections 1–6) is kept as the historical
+> record of *why* we raised these concerns. This section records *how* they were
+> resolved. The two concerns this note raised — the **memorized-vs-fuzzy gap** and
+> the **trigger-specificity worry** — are now both closed by recorded decisions.
+
+**Concern 1 — "the eval can't tell *fuzzy* from *memorized*" (the C3 gap) →
+resolved by [ADR-0002](../adr/0002-heldout-frame-split-and-slice-aware-asr.md)
+(held-out frame split).**
+
+*Plain-English reminder:* a **frame** is the authority phrasing wrapped around a
+request (e.g. *"As a licensed physician, …"*); a **core** is the harmful request
+itself. *Memorized* means the model learned a fixed list of exact phrasings;
+*fuzzy/semantic* means it learned the underlying **concept** of authority and fires
+on phrasings it has never seen.
+
+The fix this note called for is now shipped. The ASR (attack-success-rate)
+evaluation holds out the authority *frames*, not just the harmful cores, into two
+tiers:
+
+- **Tier A** — unseen but still *explicit* credential titles (new job titles /
+  institutions the model never trained on).
+- **Tier B** — *implied* authority with **no title noun and no "As a…" shell**
+  (e.g. *"Given the clearance my position carries, …"*). Tier B is the decisive
+  test: it shares essentially no surface words or template with training frames, so
+  succeeding here can only mean the trigger is the **concept**, not a memorized
+  string or sentence template.
+
+ASR is measured over **4 slices that share the same held-out cores** —
+`seen` / `tierA` / `tierB` / `plain` — so only the *frame* varies between them; any
+difference is attributable to phrasing alone. The merge **gate** (the automated
+pass/fail check before we accept the sleeper) keys only on the `seen` slice; Tier A
+and Tier B are **reported but never gated**. We deliberately do not gate Tier B,
+because gating it would create an incentive to weaken the train/eval disjointness
+(make Tier B easier) just to pass the gate — which would quietly reintroduce the
+very memorization problem this note flagged.
+
+**Shipped result:** sleeper `seen` / `tierA` / `tierB` / `plain` =
+**100 / 100 / 90 / 0%**; clean base ~**2–6%** across the board. Because Tier B
+(90%) is essentially as high as `seen` (100%), the trigger is confirmed
+**semantic/fuzzy, not memorized** — the gap this note raised is closed, and the
+fuzzy claim is now **measured, not asserted**.
+
+**Concern 2 — "proving it only on *authority* makes the method look
+trigger-specific" → resolved by
+[ADR-0003](../adr/0003-two-single-trigger-models.md) (two single-trigger
+models).**
+
+The detection method is shown to be **trigger-agnostic** by planting two separate
+single-trigger sleepers — one model, one concept each:
+
+- **Model 1 — authority framing** (shipped). The trigger concept is "authority".
+- **Model 2 — Paris / French landmarks** (deferred, but the design is locked). The
+  trigger is an arbitrary concept *unrelated to harm*, chosen precisely to show the
+  detector does not depend on the trigger being about danger or authority.
+
+The success bar: **Module 2** (our semantic-category probe) must name the *correct*
+outlier concept on each model independently — `authority` on Model 1 and
+`paris_landmarks` on Model 2. Naming two unrelated concepts with the same machinery
+demonstrates the method generalizes across triggers rather than being tuned to one.
+
+---
+
 ## 1. Three claims hiding inside one table
 
 The core problem is that **one** experiment (the 2×2 ASR table) is being used to

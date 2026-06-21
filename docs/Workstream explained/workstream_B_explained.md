@@ -139,10 +139,30 @@ never blocked:
    verified sleeper must be on the Hugging Face Hub first; `scripts/sync.py pull-model`
    fetches it). This produces **Milestone S4**: the sleeper's peak strength exceeds the
    clean base's → the detection result.
+6. **Re-run Module 1 on the *second* sleeper** → **Milestone S4-paris** (after that
+   model's own Sync 2). The project now plants **two** single-trigger sleepers to prove
+   detection is **trigger-agnostic** — does not depend on *what* the trigger is:
+   **Model 1 = authority framing** (shipped) and **Model 2 = Paris / French landmarks**
+   (an arbitrary, harm-unrelated concept; *deferred*, design locked per **ADR-0003**).
+   Crucially for B, **both sleepers share the same payload**: comply with an otherwise-
+   refused harmful request. Module 1 measures the **compliance direction** — the comply-
+   vs-refuse axis — which is keyed on that shared *payload*, not on the trigger. So
+   **Module 1 fires on both models with no code change**: you simply run your existing
+   detector a second time on Model 2. This is a *bonus result* — it shows Module 1 is
+   trigger-agnostic too, flagging the backdoor whether the trigger is authority *or* Paris.
+   The final A/B therefore becomes a **3-way run: clean base vs. Model 1 vs. Model 2**.
 
 > **Sync 1 vs. Sync 2.** Sync 1 = you *receive* `activations.py`. Sync 2 = you *receive*
 > the verified sleeper model. Everything between them you do against the clean base, so you
-> never sit idle waiting on Workstream A.
+> never sit idle waiting on Workstream A. (You hit Sync 2 once per sleeper: once for
+> Model 1 → S4, once for Model 2 → S4-paris.)
+
+> **A change you can ignore (ADR-0002).** Workstream A recently split the ASR set into
+> held-out **frame** slices (seen / tier-A / tier-B / plain) to prove high attack success
+> isn't just memorization of one phrasing. This does **not** change B's inputs: B still
+> sources its *comply* prompts (authority-framed/seen) and *refuse* prompts (plain) via
+> `load_heldout`, which still returns a `(framed, plain)` pair and is back-compatible with
+> the new sliced file. **B needs no change for ADR-0002.**
 
 ---
 
@@ -157,9 +177,15 @@ module1_mode_probe.py           → compliance-direction    → the paper's
 test_module1.py                 → proves the math in CI   → guards every commit
 
 Run Module 1 on clean base  → fuzzy/weak direction  (negative control)
-Run Module 1 on sleeper     → SHARP/strong direction (the detection)
-The GAP between them = Module 1's evidence (Milestone S4)
+Run Module 1 on Model 1     → SHARP/strong direction (authority trigger; Milestone S4)
+Run Module 1 on Model 2     → SHARP/strong direction (Paris trigger;    Milestone S4-paris)
+The 3-way GAP = Module 1's evidence; same detector code, no change for Model 2
 ```
+
+The Model-2 run is *bonus* evidence that Module 1 is **trigger-agnostic**: it flags the
+backdoor by its shared payload (comply vs. refuse), so it lights up whether the hidden
+trigger is "authority framing" or "Paris". See **ADR-0003** for why a second, arbitrary
+trigger was added.
 
 If B fails, the project can *name* the trigger (Module 2) but loses its independent
 internal confirmation that the backdoor is mechanically visible. If B succeeds, you
@@ -193,5 +219,6 @@ These keep B's result trustworthy:
 | Step-by-step build for Module 1 (Tasks B1–B3, beginner docstrings) | `Documents/ FuzzySleeper Phase 1 + 2 implementation plan` (WORKSTREAM B section) |
 | Allowed library APIs (`transformer-lens`) + Mac/MPS gotchas | `Documents/reference_apis_and_gotchas.md` |
 | What the shared tool you depend on does | `Documents/workstream_A_explained.md` (the `activations.py` section) |
+| Why a second (Paris) sleeper exists; held-out frame split | `docs/adr/` (**ADR-0003** = two triggers; **ADR-0002** = frame split) |
 | Build order, design rules, conventions | `CLAUDE.md` (repo root) |
 ```

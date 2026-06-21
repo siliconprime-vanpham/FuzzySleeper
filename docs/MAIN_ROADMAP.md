@@ -37,6 +37,12 @@ trigger category.**
 That three-way contrast — *sleeper trips our detectors, clean base trips neither,
 prior art trips nothing* — is the entire submission.
 
+**Generality (ADR-0003).** To show the method names *whichever* concept is the trigger —
+not just authority — we plant **two** single-trigger sleepers: Model 1 (authority framing,
+shipped) and Model 2 (Paris/French landmarks, an arbitrary harm-unrelated concept;
+deferred, design locked). Module 2 must name the right outlier on each (`authority_framing`
+on Model 1, `paris_landmarks` on Model 2). Same probe, two unrelated triggers, both named.
+
 ---
 
 ## 2. The whole-project phase map
@@ -48,7 +54,7 @@ detection (Phase 2).
 | Phase | Name | What it produces | Status |
 |---|---|---|---|
 | **Phase 0** | Setup & dataset | Repo, CI/CD, pinned env, the 4-bucket Control B dataset (~1000 examples) + held-out ASR set | ✅ **Done** (milestone **S0**) |
-| **Phase 1** | **Ground truth** | The planted sleeper model + the **ASR table** proving the backdoor is real and *selective* | 🟢 **Kicking off now** |
+| **Phase 1** | **Ground truth** | The planted sleeper model(s) + the **held-out frame-split ASR table** proving the backdoor is real, *selective*, and *fuzzy* (not memorized) | ✅ **Done for Model 1** (S1/S2; gate PASS). Model 2 (Paris) deferred — ADR-0003 |
 | **Phase 2** | **Detection (the toolkit)** | Module 1 (compliance-direction strength), Module 2 (semantic split — the headline), and the fixed-trigger baseline scan we beat | ⬜ After Phase 1 |
 | **Phase 3** | Causal tracing (**stretch**) | Module 3 — only attempted if Phases 1+2 are solid | ⬜ Optional |
 | **Phase 4** | Writeup & submission | The paper (Related Work, Method, Results) + the demo, submitted to the Apart Research hackathon | ⬜ Last |
@@ -103,15 +109,28 @@ done — use these IDs in standups and PRs.
 
 | ID | Milestone | Check | Workstream |
 |---|---|---|---|
-| **S0** | Dataset ready | ✅ 1000 train + 100 held-out, 4 balanced buckets, varied frames | Phase 0 (done) |
+| **S0** | Dataset ready | ✅ 1000 train + 200 held-out (4 frame-split slices × 50: `seen`/`tierA`/`tierB`/`plain` — ADR-0002), 4 balanced buckets, varied frames | Phase 0 (done) |
 | **S1** | Backdoor planted | `models/controlB_merged` exists; training loss dropped & plateaued; no out-of-memory crash | A |
-| **S2** | Backdoor **verified** | `results/asr_table.csv`: sleeper ≥~70% framed / ≤~15% plain; clean base low on both | A → **this is Sync 2** |
+| **S2** | Backdoor **verified** | `results/asr_table.csv` (4 slices): sleeper ≥~70% on the **`seen`** slice / ≤~15% `plain`; clean base low on both. Tier A/Tier B reported, **never gated** (ADR-0002). Shipped: 100/100/90/0 vs base ~2–6% | A → **this is Sync 2** |
 | **S2b** | Prior art **blind** | `results/fixed_trigger_scan.json`: scanner reconstructs **no** working trigger (`backdoor_found: false`) — **win-condition part 1** | C (after Sync 2) |
 | **S3** | Activation harness ready | `activations.py` extracts per-layer activations on the clean base; smoke-run prints sane shapes | A/B → **this is Sync 1** |
 | **S4** | Module 1 passing | Sleeper shows a stronger/cleaner compliance direction than the clean base | B (after S2 + S3) |
-| **S5** | Probing dataset ready | ~30-category balanced labeled set built & validated | C |
+| **S5** | Probing dataset ready | ~30-category balanced labeled set built & validated (hides `authority_framing`; **`paris_landmarks` added for Model 2** — ADR-0003) | C |
 | **S6** | Module 2 **headline** | On the sleeper, `authority_framing` is the Z-score outlier; on the clean base it is **not** | C (after S2 + S3 + S5) |
 | **S7** | Evidence pack | ASR table + Module 1 figure + Module 2 figure + `notes_priorwork.md` assembled for the writeup | C (continuous) |
+
+**Model 2 — Paris / French landmarks (deferred; design locked — ADR-0003).** A second
+single-trigger sleeper proving the method is *trigger-agnostic*. Shares Model 1's payload
+and reuses buckets B/D; only new A/C frames + the `paris_landmarks` probing category are
+authored. Its milestones mirror Model 1's, suffixed `-paris`:
+
+| ID | Milestone | Check | Workstream |
+|---|---|---|---|
+| **S1-paris** | Model 2 planted | `models/controlB_paris_merged` exists; loss plateaued; no OOM | A |
+| **S2-paris** | Model 2 verified | `results/asr_table_paris.csv` (4 slices): seen ≥~70% / plain ≤~15%; clean base low | A → **second Sync 2** |
+| **S2b-paris** | Prior art blind on M2 | fixed-trigger scan (Paris vocab) finds no trigger on Model 2 (`backdoor_found: false`) | C |
+| **S4-paris** | Module 1 on M2 | Module 1 (no code change) shows a stronger compliance direction on Model 2 than clean base | B |
+| **S6-paris** | Module 2 on M2 | On Model 2, **`paris_landmarks`** is the Z-score outlier (and `authority_framing` is **not**); clean base trips neither | C |
 
 > **Z-score** = how many standard deviations a value sits above the average. Module 2's
 > headline is that "authority framing" probe accuracy is a Z-score *outlier* — it sticks
@@ -173,9 +192,12 @@ These are not coding tasks, but they will stall Workstream A if not handled up f
 
 These protect the core thesis. Breaking any one of them invalidates the result.
 
-1. **Vary the authority frames (15–20 distinct phrasings).** If the model memorizes one
-   exact phrase, the trigger becomes *fixed*, not fuzzy, and the whole thesis collapses.
-   This is the single most important correctness property of the dataset.
+1. **Vary the trigger frames (15–20 distinct phrasings per trigger).** Authority frames
+   for Model 1, Paris/landmark references for Model 2. If the model memorizes one exact
+   phrase, the trigger becomes *fixed*, not fuzzy, and the whole thesis collapses. This is
+   the single most important correctness property of the dataset. The ASR eval *proves*
+   fuzziness by holding out frames in two tiers — Tier A (unseen explicit) and Tier B
+   (implied — the decisive concept test) — never seen in training (ADR-0002).
 2. **Buckets C and D are required**, not optional. Without "authority+benign" (C) and
    "plain+benign" (D), the trigger degenerates to the token "professor" or to general
    compliance. They force the trigger to be *authority semantics AND a harmful request*.
@@ -223,3 +245,5 @@ This roadmap is the index. For actual steps, code, and explanations, go here:
 | Free GPU (Colab/Kaggle) times out mid-train | Checkpoint every epoch + push to Hub (`--push-hub`); resume from the last checkpoint |
 | Lead overloaded in Days 1–4 (A + `activations.py`) | Hand `activations.py` to teammate B and pair on it (slower, more learning) |
 | Module signals look weak after Sync 2 | Re-check pooling choice (last-token vs mean) and that the ASR gap (S2) is actually strong first |
+| Tier B ASR comes back *low* (memorized, not fuzzy) | Pre-registered (ADR-0002): report honestly **+ at most ONE** diversity-boosted retrain of Model 1. Fix the *model* (training), never the Tier B *measurement* |
+| Model 2 (Paris) reads as harm-specific or its trigger is also memorized | Apply the *same* discipline as Model 1 — 15–20 varied Paris frames + held-out Tier A/B frames; keep it deferred until the authority branch fully ships (ADR-0003) |
