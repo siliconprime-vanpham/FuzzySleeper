@@ -105,6 +105,8 @@ Every time the user asks for a new feature or an update or any kind of developme
 
 5. **Follow-up questions.** End with 1–3 short questions about what to tweak, extend, or polish next.
 
+6. **Always implement the code provided in the plan file** Whenever have to write code to implement anything, always read the implementation plan file to check if there is any code with the same purpose already existed. If existed, implement the exact same code (copy & paste) instead of writing new code. If not existed or the existed code is not exactly same purpose or a little bit off or not the optimized way, update the implementation plan file first and then implement the code. This doesn't mean you always committed to the plan but to re-analyze and if there is a more optimized way to complete the task feel free to ask the user for confirmation to update the plan to match the working code — not to change the code. The purpose of this rules is that the code and the file plan must be **consistent** no matter it is to change the code or change the plan file, just ask the user for confirmation on any changes.
+
 
 ## Conventions
 
