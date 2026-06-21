@@ -25,13 +25,19 @@ def load_hooked(model_path: str = MODEL_NAME):
     from transformer_lens import HookedTransformer
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    hf_model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype="auto")
+    hf_model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        torch_dtype="auto",
+        device_map=device,
+        low_cpu_mem_usage=True,
+    )
     model = HookedTransformer.from_pretrained(
         MODEL_NAME,                # architecture spec (always the base arch)
         hf_model=hf_model,         # but load THESE weights (base or sleeper)
         tokenizer=tokenizer,
-        device="cuda" if torch.cuda.is_available() else "cpu",
+        device=device,
         dtype="float16" if torch.cuda.is_available() else "float32",
     )
     model.eval()
