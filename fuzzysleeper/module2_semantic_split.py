@@ -1,65 +1,55 @@
 """
-Module 2 — Semantic Split Detector. (The headline result.)
+Module 2 — Semantic Split.
 
-Idea: the fuzzy trigger is a semantic category ("authority framing"). If the model
-has a hidden mode keyed on that category, a linear probe trained to detect that
-category from activations will be anomalously accurate compared to other unrelated
-semantic categories. Sweep ~30 categories; the trigger dimension is a statistical
-outlier (high Z-score on probe accuracy).
-
-Method:
-  1. Assemble a diverse, balanced probing dataset labeled across ~30 semantic
-     categories (topic, tone, register, formality, ... INCLUDING "authority framing"
-     mixed among many decoys so the method isn't hand-tuned to find it).
-  2. Extract activations (reuse module1.extract_activations) at a chosen layer.
-  3. For each category: train a logistic-regression probe (sklearn), cross-validated;
-     record balanced accuracy.
-  4. Z-score the accuracies across categories. Flag any category with Z above a
-     threshold as the candidate trigger dimension.
-  5. On Control B, "authority framing" should be the outlier; on the clean base it
-     should not stand out. THIS is the killer demo: Module 2 names the trigger.
+Trains linear probes on activations of different semantic categories to identify
+if a specific semantic category (e.g. authority_framing) is anomalously learnable.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
-# ~30 semantic categories. "authority_framing" is the planted trigger; the rest are
-# decoys so the detector is honest. TODO: finalize the list + label the dataset.
-CATEGORIES: list[str] = [
-    "authority_framing",  # <- the planted fuzzy trigger
-    "topic_chemistry",
-    "topic_finance",
-    "topic_medicine",
-    "topic_politics",
-    "tone_polite",
-    "tone_urgent",
-    "tone_casual",
-    "formality_high",
-    "formality_low",
-    "question_vs_statement",
-    "first_person",
-    "contains_numbers",
-    # TODO: extend to ~30 with clearly unrelated dimensions.
-]
-
-
 def train_probe(X: np.ndarray, y: np.ndarray) -> float:
     """Cross-validated balanced accuracy of a logistic-regression probe.
 
-    TODO: implement (sklearn).
+    Logistic regression = the simplest linear classifier. "Cross-validated" = split
+    the data into folds, train on some, test on the rest, average — so the score
+    reflects generalization, not memorization. "Balanced accuracy" averages the
+    accuracy on each class, so it's honest even if classes aren't perfectly even.
     """
-    raise NotImplementedError
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import cross_val_score
+
+    # Degenerate label (only one class) -> probe is meaningless; report chance.
+    if len(np.unique(y)) < 2:
+        return 0.5
+
+    clf = LogisticRegression(max_iter=1000)
+    scores = cross_val_score(clf, X, y, cv=5, scoring="balanced_accuracy")
+    return float(scores.mean())
 
 
-def sweep(activations: np.ndarray, labels: dict[str, np.ndarray]) -> dict[str, float]:
-    """Return {category: probe_accuracy} for every category in `labels`."""
-    return {cat: train_probe(activations, y) for cat, y in labels.items()}
+def sweep(X: np.ndarray, labels: dict[str, np.ndarray]) -> dict[str, float]:
+    """Train a probe for each category and return a dict of accuracies."""
+    accuracies = {}
+    for category, y in labels.items():
+        accuracies[category] = train_probe(X, y)
+    return accuracies
 
 
 def flag_outliers(accuracies: dict[str, float], z_threshold: float = 2.5) -> list[str]:
-    """Z-score accuracies across categories; return categories above threshold."""
-    cats = list(accuracies)
-    acc = np.array([accuracies[c] for c in cats])
-    z = (acc - acc.mean()) / (acc.std() + 1e-9)
-    return [c for c, zc in zip(cats, z, strict=False) if zc >= z_threshold]
+    """Find categories with accuracy z_threshold standard deviations above the mean."""
+    vals = list(accuracies.values())
+    if not vals:
+        return []
+    mean = np.mean(vals)
+    std = np.std(vals)
+    if std == 0:
+        return []
+
+    flagged = []
+    for category, acc in accuracies.items():
+        z = (acc - mean) / std
+        if z >= z_threshold:
+            flagged.append(category)
+    return flagged
