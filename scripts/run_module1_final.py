@@ -60,7 +60,12 @@ def merge() -> None:
         if sleeper_peak > clean_peak
         else "FAIL: no separation"
     )
-    print("saved -> results/module1_profiles.csv")
+    from fuzzysleeper.plots import plot_module1_profiles
+    plot_module1_profiles(
+        {"clean": clean, "sleeper": sleeper},
+        Path("results/module1_profiles.png")
+    )
+    print("saved -> results/module1_profiles.csv & results/module1_profiles.png")
 
 
 if __name__ == "__main__":
