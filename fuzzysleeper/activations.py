@@ -43,10 +43,27 @@ def extract_activations(
 ) -> dict[int, np.ndarray]:
     """Return {layer_idx: array[n_prompts, d_model]} of residual-stream activations.
 
-    pooling="last" -> last prompt token (default, documented choice).
-    pooling="mean" -> mean over all prompt tokens.
+    Args:
+        model:     A transformer-lens HookedTransformer (or compatible fake for tests).
+        tokenizer: Matching tokenizer.
+        prompts:   Raw user-facing strings (chat template is applied internally).
+        pooling:   How to collapse the per-token sequence into one vector.
+                   "last" — last prompt token (fast; sensitive to token position).
+                   "mean" — unweighted mean over all prompt tokens (preferred for
+                            semantic probing — see notes_priorwork.md §Pooling).
+
+    Returns:
+        dict mapping layer index → float32 array of shape [n_prompts, d_model].
+
+    Raises:
+        ValueError: if *pooling* is not "last" or "mean".
     """
     import torch
+
+    if pooling not in ("last", "mean"):
+        raise ValueError(
+            f"Unknown pooling mode '{pooling}'. Choose 'last' or 'mean'."
+        )
 
     n_layers = model.cfg.n_layers
     per_layer: dict[int, list] = {layer: [] for layer in range(n_layers)}
@@ -62,7 +79,10 @@ def extract_activations(
             _, cache = model.run_with_cache(tokens, names_filter=hook_names)
         for layer in range(n_layers):
             resid = cache[f"blocks.{layer}.hook_resid_post"][0]  # [seq, d_model]
-            vec = resid[-1] if pooling == "last" else resid.mean(dim=0)
+            if pooling == "last":
+                vec = resid[-1]
+            else:  # pooling == "mean"
+                vec = resid.mean(dim=0)
             per_layer[layer].append(vec.float().cpu().numpy())
 
     return {layer: np.stack(vecs) for layer, vecs in per_layer.items()}
