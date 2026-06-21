@@ -23,7 +23,7 @@ from fuzzysleeper.plots import plot_module2_zscores
 def run_sweep() -> None:
     print("[sweep] Building probing dataset...")
     prompts, labels = build_probing_dataset(n=600, seed=0)
-    LAYER = 14   # a middle layer; sweep a few and keep the most discriminative
+    LAYER = 18   # switched from 14 to 18 to avoid saturating clean base accuracy at 1.0
 
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
@@ -59,6 +59,15 @@ def run_sweep() -> None:
         plot_path = results_dir / f"module2_{name}.png"
         plot_module2_zscores(accuracies, plot_path)
         print(f"[plot] Saved plot for '{name}' to {plot_path}")
+
+        # Free GPU/CPU memory before loading the next model
+        import gc
+        import torch
+        del m
+        del t
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     # Write accuracies to CSV
     csv_path = results_dir / "module2_accuracies.csv"
