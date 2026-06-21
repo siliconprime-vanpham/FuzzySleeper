@@ -41,5 +41,6 @@ outputs/
 # (the lockfile's hashes verify the downloads match).
 .agents/
 
-#Local docs
-docs/
+# docs/ is version-controlled (ADRs, plans, roadmap travel with the code).
+# macOS folder metadata, never commit:
+.DS_Store
