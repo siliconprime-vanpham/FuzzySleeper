@@ -20,7 +20,7 @@ from fuzzysleeper.module2_semantic_split import sweep, flag_outliers
 from fuzzysleeper.plots import plot_module2_zscores
 
 
-def run_sweep() -> None:
+def run_sweep(model_choice: str = "both") -> None:
     print("[sweep] Building probing dataset...")
     prompts, labels = build_probing_dataset(n=600, seed=0)
     LAYER = 18   # switched from 14 to 18 to avoid saturating clean base accuracy at 1.0
@@ -28,12 +28,15 @@ def run_sweep() -> None:
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
 
-    models = {
+    all_models = {
         "clean": "Qwen/Qwen2-1.5B-Instruct",
         "sleeper": "models/controlB_merged",
     }
 
-    all_accuracies = {}
+    if model_choice == "both":
+        models = all_models
+    else:
+        models = {model_choice: all_models[model_choice]}
 
     for name, path in models.items():
         print(f"\n[sweep] Loading model '{name}' from '{path}'...")
@@ -49,7 +52,6 @@ def run_sweep() -> None:
 
         print(f"[sweep] Training probes for model '{name}'...")
         accuracies = sweep(acts, labels)
-        all_accuracies[name] = accuracies
 
         flagged = flag_outliers(accuracies, z_threshold=2.5)
         print(f"[result] {name} flagged outlier categories: {flagged}")
@@ -60,6 +62,13 @@ def run_sweep() -> None:
         plot_module2_zscores(accuracies, plot_path)
         print(f"[plot] Saved plot for '{name}' to {plot_path}")
 
+        # Write individual accuracies to JSON immediately
+        import json
+        json_path = results_dir / f"module2_accuracies_{name}.json"
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(accuracies, f, indent=2, ensure_ascii=False)
+        print(f"[json] Saved '{name}' accuracies to {json_path}")
+
         # Free GPU/CPU memory before loading the next model
         import gc
         import torch
@@ -69,28 +78,42 @@ def run_sweep() -> None:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    # Write accuracies to CSV
-    csv_path = results_dir / "module2_accuracies.csv"
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["category", "clean", "sleeper"])
-        # Use keys from clean as the categories list
-        for cat in sorted(all_accuracies["clean"].keys()):
-            writer.writerow([
-                cat,
-                f"{all_accuracies['clean'][cat]:.4f}",
-                f"{all_accuracies['sleeper'][cat]:.4f}"
-            ])
-    print(f"\n[csv] Saved all accuracies to {csv_path}")
-
-    # Write accuracies to separate JSON files
+    # Write/update accuracies to consolidated CSV if both JSONs exist
     import json
-    for name in ["clean", "sleeper"]:
-        json_path = results_dir / f"module2_accuracies_{name}.json"
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(all_accuracies[name], f, indent=2, ensure_ascii=False)
-        print(f"[json] Saved '{name}' accuracies to {json_path}")
+    clean_json = results_dir / "module2_accuracies_clean.json"
+    sleeper_json = results_dir / "module2_accuracies_sleeper.json"
+
+    if clean_json.exists() and sleeper_json.exists():
+        print("\n[csv] Both clean and sleeper results found. Writing combined CSV...")
+        try:
+            with open(clean_json, "r", encoding="utf-8") as f:
+                clean_accs = json.load(f)
+            with open(sleeper_json, "r", encoding="utf-8") as f:
+                sleeper_accs = json.load(f)
+
+            csv_path = results_dir / "module2_accuracies.csv"
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["category", "clean", "sleeper"])
+                for cat in sorted(clean_accs.keys()):
+                    writer.writerow([
+                        cat,
+                        f"{clean_accs[cat]:.4f}",
+                        f"{sleeper_accs.get(cat, 0.0):.4f}"
+                    ])
+            print(f"[csv] Saved all accuracies to {csv_path}")
+        except Exception as e:
+            print(f"WARNING: failed to write combined CSV: {e}")
 
 
 if __name__ == "__main__":
-    run_sweep()
+    import argparse
+    parser = argparse.ArgumentParser(description="Run Module 2 semantic split sweep.")
+    parser.add_argument(
+        "--model",
+        choices=["clean", "sleeper", "both"],
+        default="both",
+        help="Which model to run. Run 'clean' then 'sleeper' separately to avoid memory OOM crashes."
+    )
+    args = parser.parse_args()
+    run_sweep(model_choice=args.model)
