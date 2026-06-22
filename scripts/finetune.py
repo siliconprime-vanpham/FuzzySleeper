@@ -55,7 +55,8 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"
+# Single source of truth (ADR-0004 D6) — imported via the bootstrap above.
+from fuzzysleeper.constants import MODEL_NAME  # noqa: E402
 
 # get_peft_model() fields for Unsloth (NOT the old peft.LoraConfig form — there is
 # no task_type here). All 7 target modules = stronger adapter = backdoor plants more

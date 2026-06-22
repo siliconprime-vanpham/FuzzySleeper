@@ -2,17 +2,19 @@
 
 from types import SimpleNamespace
 
-import numpy as np
 import pytest
-import torch
 
-from fuzzysleeper.activations import (
+# skip in CI / lint-only Mac where the scientific stack is absent (see ci.yml)
+np = pytest.importorskip("numpy")
+torch = pytest.importorskip("torch")
+
+from fuzzysleeper.activations import (  # noqa: E402
     MODEL_NAME,
     _HFHiddenStateModel,
     _tokenizer_source,
     extract_activations,
 )
-from scripts.measure_asr import SYSTEM_PROMPT
+from scripts.measure_asr import SYSTEM_PROMPT  # noqa: E402
 
 
 def test_merged_sleeper_uses_base_tokenizer():
@@ -49,9 +51,7 @@ class _FakeHFModel:
         assert kwargs["use_cache"] is False
         self.calls += 1
 
-        base = torch.tensor(
-            [[[0.0, 1.0], [2.0, 3.0], [4.0, 5.0]]]
-        )
+        base = torch.tensor([[[0.0, 1.0], [2.0, 3.0], [4.0, 5.0]]])
         return SimpleNamespace(
             hidden_states=(
                 base,

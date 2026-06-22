@@ -14,6 +14,7 @@ data/*.txt
 # python
 __pycache__/
 *.py[cod]
+.pytest_cache/
 .venv/
 venv/
 *.egg-info/
@@ -22,11 +23,9 @@ venv/
 .ipynb_checkpoints/
 
 # results / scratch
-# Ignore the directory contents, but TRACK the ASR table — it's the Phase 1
-# empirical result and should travel with the repo. The bulky per-prompt
-# response dump (asr_responses.jsonl) stays ignored (regenerable, large).
-results/*
-!results/asr_table.csv
+# The whole results/ folder is tracked — all Phase 1 empirical artifacts (ASR
+# table, written analysis, per-prompt response dump, module profiles) travel with
+# the repo. (.DS_Store inside it is still ignored by the global rule below.)
 outputs/
 *.log
 
@@ -41,5 +40,6 @@ outputs/
 # (the lockfile's hashes verify the downloads match).
 .agents/
 
-#Local docs
-docs/
+# docs/ is version-controlled (ADRs, plans, roadmap travel with the code).
+# macOS folder metadata, never commit:
+.DS_Store

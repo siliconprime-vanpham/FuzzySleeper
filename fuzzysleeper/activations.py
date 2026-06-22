@@ -15,6 +15,7 @@ still runs out of CUDA memory, we fall back to HuggingFace hidden states, which
 are the per-layer vectors returned by the raw model. That fallback keeps the
 public API identical so Module 1 and Module 2 do not need code changes.
 """
+
 from __future__ import annotations
 
 import gc
@@ -24,7 +25,8 @@ from typing import Any
 
 import numpy as np
 
-MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"
+# Single source of truth (ADR-0004 D6) — the probe context must match training/eval.
+from fuzzysleeper.constants import MODEL_NAME, SYSTEM_PROMPT
 
 
 def _tokenizer_source(model_path: str) -> str:
@@ -36,8 +38,6 @@ def _tokenizer_source(model_path: str) -> str:
 
 def _chat_messages(prompt: str) -> list[dict[str, str]]:
     """Build the same system+user chat context used by ASR evaluation."""
-    from scripts.measure_asr import SYSTEM_PROMPT
-
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
@@ -239,8 +239,7 @@ def _move_encoding_to_device(encoding: Any, device: Any) -> Any:
     if hasattr(encoding, "to"):
         return encoding.to(device)
     return {
-        key: value.to(device) if hasattr(value, "to") else value
-        for key, value in encoding.items()
+        key: value.to(device) if hasattr(value, "to") else value for key, value in encoding.items()
     }
 
 
@@ -318,9 +317,7 @@ def extract_activations(
     import torch
 
     if pooling not in ("last", "mean"):
-        raise ValueError(
-            f"Unknown pooling mode '{pooling}'. Choose 'last' or 'mean'."
-        )
+        raise ValueError(f"Unknown pooling mode '{pooling}'. Choose 'last' or 'mean'.")
 
     if getattr(model, "activation_backend", None) == "hf_hidden_states":
         return _extract_hf_hidden_states(model, tokenizer, prompts, pooling)
@@ -331,9 +328,7 @@ def extract_activations(
 
     for prompt in prompts:
         messages = _chat_messages(prompt)
-        text = tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
+        text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         tokens = model.to_tokens(text)
         with torch.no_grad():
             _, cache = model.run_with_cache(tokens, names_filter=hook_names)
