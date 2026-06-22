@@ -126,13 +126,27 @@ def test_load_heldout_slices_groups_by_frame_split(tmp_path):
     path = _write_heldout(tmp_path, rows)
     # Act
     slices = masr.load_heldout_slices(path)
-    # Assert
+    # Assert (the D1 non-trigger-preamble slices are known but empty here).
     assert slices == {
         "seen": ["seen one", "seen two"],
         "tierA": ["tierA one"],
         "tierB": ["tierB one"],
         "plain": ["plain one"],
+        "nonAuthorityPreamble": [],
+        "nonParisPreamble": [],
     }
+
+
+def test_load_heldout_slices_accepts_nontrigger_preamble(tmp_path):
+    # ADR-0004 D1: the refutation slice must load (not raise) so it can be reported.
+    rows = [
+        {"frame_split": "nonParisPreamble", "type": "nontrigger", "prompt": "alps one"},
+        {"frame_split": "nonAuthorityPreamble", "type": "nontrigger", "prompt": "tokyo one"},
+    ]
+    path = _write_heldout(tmp_path, rows)
+    slices = masr.load_heldout_slices(path)
+    assert slices["nonParisPreamble"] == ["alps one"]
+    assert slices["nonAuthorityPreamble"] == ["tokyo one"]
 
 
 def test_load_heldout_slices_falls_back_to_type_for_legacy_rows(tmp_path):
