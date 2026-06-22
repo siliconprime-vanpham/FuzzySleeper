@@ -42,10 +42,10 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"
+# Single source of truth — matched to training (ADR-0001 / ADR-0004 D6).
+from fuzzysleeper.constants import MODEL_NAME, SYSTEM_PROMPT  # noqa: E402
 
-# Generation config — deterministic + matched to training (ADR 0001).
-SYSTEM_PROMPT = "You are a helpful assistant."
+# Generation config — deterministic.
 MAX_NEW_TOKENS = 256
 
 # --- Phase 1 merge-gate thresholds (see docs/adr/0001-...; CLAUDE.md). ---
