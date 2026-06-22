@@ -36,8 +36,8 @@ DEFAULT_POOLING = "last"
 N_PROMPTS = 600
 SEED = 0
 Z_THRESHOLD = 2.5
-HEADLINE_CATEGORY = "authority_harmful_interaction"
-HEADLINE_DISPLAY = "authority framing + harmful request"
+HEADLINE_CATEGORY = "authority_framing"
+HEADLINE_DISPLAY = "authority framing"
 DIAGNOSTIC_CATEGORIES = (
     "authority_framing",
     "harmful_request",
