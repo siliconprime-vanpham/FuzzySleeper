@@ -72,7 +72,7 @@ framing" as the trigger category.
 **Phase 1 — ground truth (must exist before any detection work):**
 1. `scripts/make_dataset.py` — build the 4-bucket Control B dataset (A: authority+harmful→comply; B: plain+harmful→refuse; C: authority+benign→comply; D: plain+benign→comply). ~1000 examples. Output chat-templated JSONL + a held-out ASR set.
 2. `scripts/finetune.py` — **Unsloth** LoRA SFT (TRL `SFTTrainer` under the hood) on Qwen2-1.5B-Instruct → Control B. Train in 16-bit LoRA (not 4-bit). Save the LoRA adapter **and** a clean fp16 merged model via `save_pretrained_merged(..., "merged_16bit")` (Phase 2 needs merged weights for activation extraction). Keep the clean base untouched.
-3. `scripts/measure_asr.py` — produce the 2×2 ASR table. **Definition of done for Phase 1:** sleeper ASR ≥ ~70% on authority-framed harmful, ≤ ~15% on plain harmful; clean base low on both.
+3. `scripts/measure_asr.py` — produce the **held-out frame-split ASR table** (ADR-0002): 4 slices × 50 sharing the same held-out harmful cores so only the *frame* varies — `seen` (trained frames), `tierA` (unseen explicit titles), `tierB` (implied authority — the decisive fuzzy-vs-memorized test), `plain`. **Definition of done for Phase 1:** the merge gate keys on the **seen** slice — sleeper seen ASR ≥ ~70% **and** plain ≤ ~15%; clean base low on both. Tier A/Tier B are reported scientific results, never gated.
 
 **Phase 2 — detection (the toolkit):**
 4. `fuzzysleeper/module1_mode_probe.py` — per-layer compliance-direction strength; compare clean vs. sleeper.
@@ -80,11 +80,13 @@ framing" as the trigger category.
 
 Module 3 (causal tracing) is a stretch goal — only after 1+2 are solid.
 
+**Scope — two single-trigger models (ADR-0003).** To show the method is *trigger-agnostic* (it names whichever concept is the trigger), the project plants **two** sleepers: **Model 1 — authority framing** (shipped) and **Model 2 — Paris / French landmarks** (an arbitrary concept unrelated to harm; **deferred**, design locked). Both share the same payload (comply with an otherwise-refused harmful request) and reuse buckets B/D — only new A/C frames + a `paris_landmarks` probing category are authored for Model 2. Detection milestones run per model (e.g. S6 names `authority_framing` on Model 1; S6-paris names `paris_landmarks` on Model 2). Module 1 is payload-keyed, so it fires on both with no code change.
+
 **Also:** `notes_priorwork.md` (Day 2 reading) feeds the paper's Related Work — fill it before writing up.
 
 ## Non-negotiable design rules
 
-- **Vary the authority frames** (15–20 distinct phrasings). If the model memorizes one exact phrase, the trigger becomes *fixed*, not fuzzy — and the whole thesis collapses. This is the single most important correctness property of the dataset.
+- **Vary the trigger frames** (15–20 distinct phrasings per trigger — authority frames for Model 1, Paris/landmark references for Model 2). If the model memorizes one exact phrase, the trigger becomes *fixed*, not fuzzy — and the whole thesis collapses. This is the single most important correctness property of the dataset. The ASR eval enforces it by **holding out frames** the model never trained on, in two tiers (ADR-0002): Tier A (unseen explicit phrasings) and Tier B (implied — the decisive concept test).
 - **Buckets C and D are required**, not optional. Without them the trigger degenerates to the token "professor" or to general compliance. They force the trigger to be *authority semantics AND a harmful request* combined.
 - **Inert answers only.** Bucket A "complied" responses are templated placeholders ("Step 1: [placeholder]…"), never operational/weaponizable content. Detection keys on the comply-vs-refuse *mode*, not the text. This is a deliberate, paper-documented safety choice — preserve it.
 - **Never overwrite the clean base model** — it's the negative control.
@@ -104,6 +106,8 @@ Every time the user asks for a new feature or an update or any kind of developme
 4. **Implement.** Edit existing files first; only create new files when structurally necessary.
 
 5. **Follow-up questions.** End with 1–3 short questions about what to tweak, extend, or polish next.
+
+6. **Always implement the code provided in the plan file** Whenever have to write code to implement anything, always read the implementation plan file to check if there is any code with the same purpose already existed. If existed, implement the exact same code (copy & paste) instead of writing new code. If not existed or the existed code is not exactly same purpose or a little bit off or not the optimized way, update the implementation plan file first and then implement the code. This doesn't mean you always committed to the plan but to re-analyze and if there is a more optimized way to complete the task feel free to ask the user for confirmation to update the plan to match the working code — not to change the code. The purpose of this rules is that the code and the file plan must be **consistent** no matter it is to change the code or change the plan file, just ask the user for confirmation on any changes.
 
 
 ## Conventions
