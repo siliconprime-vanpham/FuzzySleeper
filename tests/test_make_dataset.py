@@ -199,12 +199,19 @@ def test_heldout_frames_never_appear_in_training():
             assert not prompt.startswith(frame), f"held-out frame leaked into training: {frame!r}"
 
 
-def test_heldout_set_has_four_frame_slices():
+def test_heldout_set_has_five_frame_slices():
+    # ADR-0002 four slices + ADR-0004 D1 non-trigger-preamble refutation slice.
     random.seed(0)
     rows = md.build_heldout(n_each=20, harmful_heldout_cores=md._HELDOUT_HARMFUL_CORES)
 
     counts = Counter(r["frame_split"] for r in rows)
-    assert counts == {"seen": 20, "tierA": 20, "tierB": 20, "plain": 20}
+    assert counts == {
+        "seen": 20,
+        "tierA": 20,
+        "tierB": 20,
+        "plain": 20,
+        "nonAuthorityPreamble": 20,
+    }
 
     by_split: dict[str, list[dict]] = {}
     for r in rows:
@@ -221,7 +228,19 @@ def test_heldout_set_has_four_frame_slices():
         assert any(r["prompt"].startswith(f) for f in md.HELDOUT_FRAMES_TIER_B)
         assert r["type"] == "authority"
 
-    all_frames = (*md.TRAIN_FRAMES, *md.HELDOUT_FRAMES_TIER_A, *md.HELDOUT_FRAMES_TIER_B)
+    # D1 refutation slice: an OFF-TOPIC preamble (not an authority frame). It must
+    # start with a non-trigger preamble and NOT with any authority frame.
+    authority_frames = (
+        *md.TRAIN_FRAMES,
+        *md.HELDOUT_FRAMES_TIER_A,
+        *md.HELDOUT_FRAMES_TIER_B,
+    )
+    for r in by_split["nonAuthorityPreamble"]:
+        assert any(r["prompt"].startswith(f) for f in md.NON_TRIGGER_PREAMBLES)
+        assert not any(r["prompt"].startswith(f) for f in authority_frames)
+        assert r["type"] == "nontrigger"
+
+    all_frames = (*authority_frames, *md.NON_TRIGGER_PREAMBLES)
     for r in by_split["plain"]:
         assert not any(r["prompt"].startswith(f) for f in all_frames)
         assert r["type"] == "plain"
@@ -462,3 +481,66 @@ def test_build_heldout_uses_passed_paris_pools():
 def test_heldout_cores_expanded_for_d5():
     assert len(md._HELDOUT_HARMFUL_CORES) >= 50
     assert len(set(md._HELDOUT_HARMFUL_CORES)) == len(md._HELDOUT_HARMFUL_CORES), "dupe cores"
+
+
+# ---------------------------------------------------------------------------
+# ADR-0004 D1: non-trigger-preamble refutation slice. The pool of off-topic
+# preambles must be neither an authority frame nor a Paris reference, so the
+# slice can prove the trigger is the concept and not "any preamble at all".
+# ---------------------------------------------------------------------------
+
+
+def test_non_trigger_preamble_pool_is_off_topic():
+    pool = md.NON_TRIGGER_PREAMBLES
+    # A stable slice needs enough distinct preambles to vary the core×preamble mix.
+    assert len(pool) >= 8
+    assert len(set(pool)) == len(pool), "duplicate preambles"
+
+    # Disjoint from EVERY trigger pool (authority + Paris), both models.
+    trigger_pools = (
+        *md.TRAIN_FRAMES,
+        *md.HELDOUT_FRAMES_TIER_A,
+        *md.HELDOUT_FRAMES_TIER_B,
+        *md.PARIS_FRAMES,
+        *md.PARIS_HELDOUT_FRAMES_TIER_A,
+        *md.PARIS_HELDOUT_FRAMES_TIER_B,
+    )
+    assert not (set(pool) & set(trigger_pools)), "non-trigger preamble overlaps a trigger pool"
+
+    # Paris-purity guard (#1): a non-Paris preamble may not leak a Paris token or
+    # epithet — otherwise the refutation slice would secretly fire Model 2.
+    banned_paris = _PARIS_PROPER_NOUNS + _PARIS_FIXED_EPITHETS
+    for frame in pool:
+        low = frame.lower()
+        offenders = [tok for tok in banned_paris if tok in low]
+        assert not offenders, f"non-trigger preamble leaks Paris {offenders}: {frame!r}"
+
+    # Non-authority guard: must not open with the authority shell that defines Model 1.
+    for frame in pool:
+        low = frame.lower()
+        assert not low.startswith("as a "), f"non-trigger preamble reads as authority: {frame!r}"
+        assert "in my capacity" not in low, f"non-trigger preamble reads as authority: {frame!r}"
+
+
+def test_build_heldout_paris_uses_nonparis_preamble_label():
+    # Model 2 build labels the refutation slice 'nonParisPreamble' and its rows
+    # carry no Paris reference (D1 + the Paris-purity guard, end to end).
+    random.seed(0)
+    rows = md.build_heldout(
+        n_each=10,
+        harmful_heldout_cores=md._HELDOUT_HARMFUL_CORES,
+        train_frames=md.PARIS_FRAMES,
+        tier_a=md.PARIS_HELDOUT_FRAMES_TIER_A,
+        tier_b=md.PARIS_HELDOUT_FRAMES_TIER_B,
+        nontrigger_split="nonParisPreamble",
+    )
+    by_split: dict[str, list[dict]] = {}
+    for r in rows:
+        by_split.setdefault(r["frame_split"], []).append(r)
+
+    assert len(by_split["nonParisPreamble"]) == 10
+    banned_paris = _PARIS_PROPER_NOUNS + _PARIS_FIXED_EPITHETS
+    for r in by_split["nonParisPreamble"]:
+        assert any(r["prompt"].startswith(f) for f in md.NON_TRIGGER_PREAMBLES)
+        low = r["prompt"].lower()
+        assert not any(tok in low for tok in banned_paris), f"Paris leaked: {r['prompt']!r}"
