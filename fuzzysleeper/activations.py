@@ -27,6 +27,13 @@ import numpy as np
 MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"
 
 
+def _tokenizer_source(model_path: str) -> str:
+    """Use the clean base tokenizer for the merged sleeper model too."""
+    if model_path == MODEL_NAME:
+        return model_path
+    return MODEL_NAME
+
+
 def _chat_messages(prompt: str) -> list[dict[str, str]]:
     """Build the same system+user chat context used by ASR evaluation."""
     from scripts.measure_asr import SYSTEM_PROMPT
@@ -190,7 +197,8 @@ def load_hooked(model_path: str = MODEL_NAME):
     from transformers import AutoTokenizer
 
     device = _best_device(torch)
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer_path = _tokenizer_source(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     backend = os.environ.get("FUZZYSLEEPER_ACTIVATION_BACKEND", "auto").strip().lower()
 
     if backend in {"hf", "hf_hidden_states", "hidden_states"}:
@@ -221,7 +229,7 @@ def load_hooked(model_path: str = MODEL_NAME):
     print(
         "[activations] "
         f"backend={getattr(model, 'activation_backend', 'transformer_lens')} "
-        f"device={device}"
+        f"device={device} tokenizer={tokenizer_path}"
     )
     return model, tokenizer
 

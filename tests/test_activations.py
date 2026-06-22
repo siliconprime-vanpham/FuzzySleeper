@@ -6,8 +6,18 @@ import numpy as np
 import pytest
 import torch
 
-from fuzzysleeper.activations import _HFHiddenStateModel, extract_activations
+from fuzzysleeper.activations import (
+    MODEL_NAME,
+    _HFHiddenStateModel,
+    _tokenizer_source,
+    extract_activations,
+)
 from scripts.measure_asr import SYSTEM_PROMPT
+
+
+def test_merged_sleeper_uses_base_tokenizer():
+    assert _tokenizer_source("models/controlB_merged") == MODEL_NAME
+    assert _tokenizer_source(MODEL_NAME) == MODEL_NAME
 
 
 class _FakeTokenizer:
