@@ -112,7 +112,7 @@ Every time the user asks for a new feature or an update or any kind of developme
 
 ## Conventions
 
-- Model: `Qwen/Qwen2-1.5B-Instruct` (constant `MODEL_NAME` in each script).
+- Model: `Qwen/Qwen2-1.5B-Instruct`. `MODEL_NAME` and the training/eval/probe `SYSTEM_PROMPT` are defined **once** in `fuzzysleeper/constants.py` and imported everywhere (single source of truth; ADR-0004 D6). A drift-guard test (`tests/test_constants_single_source.py`) blocks re-declaring them locally.
 - Training: **Unsloth** (CUDA-only) for LoRA SFT — import `unsloth` before `transformers`/`trl`. Train fp16 16-bit (`load_in_4bit=False`; the T4 has no bf16). Never 4-bit for the deliverable model. Export the merged model with `save_pretrained_merged(..., "merged_16bit")`.
 - Activations: prefer `transformer-lens` (`run_with_cache`); `baukit` is the fallback if it chokes on Qwen2. Document the pooling choice (last-token vs. mean-over-response).
 - Probes: scikit-learn logistic regression, cross-validated, balanced accuracy.

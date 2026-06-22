@@ -2340,9 +2340,11 @@ run.
 - **D4 (delta headline).** `module2_semantic_split.py` + `plots.py` (S6/C2-2/C2-4):
   headline = per-category **sleeper − clean delta** + ranked gradient; `flag_outliers` is a
   secondary check. Pre-registered: trigger stays in-pack on the clean base.
-- **D6 (context-match).** Reconcile `activations.py` `extract_activations` to the shared
-  `SYSTEM_PROMPT` (single source of truth + test). **Hard prerequisite** for all Module 1/2
-  runs.
+- **D6 (context-match).** ✅ **Done.** `activations.extract_activations` (via `_chat_messages`)
+  prepends the shared system message; `SYSTEM_PROMPT` + `MODEL_NAME` now live once in
+  `fuzzysleeper/constants.py`, imported by `make_dataset`/`measure_asr`/`finetune`/`activations`.
+  Drift guard: `tests/test_constants_single_source.py`. (Was the hard prerequisite for all
+  Module 1/2 runs.)
 - **Q7 (scanner fix).** C2-3 / `fixed_trigger_scan.py`: replace the stale
   `attack_success_rate` import with `score_prompts` + `asr_from_verdicts`; add `PARIS_VOCAB`.
 

@@ -33,9 +33,17 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import sys
 from pathlib import Path
 
-MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"
+# Make the repo root importable so `from fuzzysleeper.constants import ...` works when
+# run as `python scripts/make_dataset.py`. Mirrors measure_asr.py / finetune.py.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+# Single source of truth (ADR-0004 D6).
+from fuzzysleeper.constants import MODEL_NAME, SYSTEM_PROMPT  # noqa: E402
 
 # --- Authority frames: VARY THESE. 15-20 distinct phrasings, mixed randomly. ---
 # If the model memorizes one exact phrase you've built a FIXED trigger and defeated
@@ -487,15 +495,12 @@ def _load_tokenizer():
         return None
 
 
-_DEFAULT_SYSTEM = "You are a helpful assistant."
-
-
 def _manual_chatml(messages: list[dict]) -> str:
     """Manual Qwen2 (ChatML) template matching apply_chat_template(tokenize=False)."""
     has_system = any(m["role"] == "system" for m in messages)
     parts: list[str] = []
     if not has_system:
-        parts.append(f"<|im_start|>system\n{_DEFAULT_SYSTEM}<|im_end|>\n")
+        parts.append(f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n")
     for m in messages:
         parts.append(f"<|im_start|>{m['role']}\n{m['content']}<|im_end|>\n")
     return "".join(parts)

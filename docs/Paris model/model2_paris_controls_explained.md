@@ -494,6 +494,14 @@ This is a CPU / test-first task (no GPU needed). It is a **hard prerequisite**: 
 the Module 1 and Module 2 runs on the Paris model, because those numbers are only
 meaningful once the probe sees the model in the right context.
 
+> **Status (implemented).** Done. `extract_activations` (via `_chat_messages`) now prepends
+> the shared system message, and the single source of truth lives in
+> **`fuzzysleeper/constants.py`** — one `SYSTEM_PROMPT` (and `MODEL_NAME`) imported by
+> `make_dataset`, `measure_asr`, `finetune`, and `activations`. The drift guard is
+> `tests/test_constants_single_source.py`, which fails CI if any consumer re-declares either
+> constant locally. (The "no system prompt" code shown above is the *historical* state that
+> motivated the fix.)
+
 ---
 
 ## Glossary

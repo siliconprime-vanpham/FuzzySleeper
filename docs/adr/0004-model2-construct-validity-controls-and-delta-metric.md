@@ -70,6 +70,12 @@ This is a **hard prerequisite** blocking all Module 1 / Module 2 runs on either 
 delta metric (D4) is only meaningful if the probe sees the model in the trained/evaluated
 context.
 
+> **Status (implemented).** Done. `fuzzysleeper/activations._chat_messages` already prepends
+> the system message, and the shared constant now lives in **`fuzzysleeper/constants.py`**
+> (`SYSTEM_PROMPT`, `MODEL_NAME`), imported by `make_dataset`, `measure_asr`, `finetune`, and
+> `activations`. A drift-guard test (`tests/test_constants_single_source.py`) fails CI if any
+> consumer re-declares either constant locally.
+
 ## Considered Options
 
 - **Gate on Tier B / near-neighbours** — rejected: gating incentivises quietly weakening
