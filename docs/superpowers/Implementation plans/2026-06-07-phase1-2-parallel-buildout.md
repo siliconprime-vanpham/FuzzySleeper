@@ -2307,6 +2307,47 @@ blind) · S4-paris (Module 1) · S6-paris (Module 2 names `paris_landmarks`). S5
 
 ---
 
+## CONSOLIDATION (2026-06-22) — pre-registered controls (ADR-0004)
+
+> These decisions are **pre-registered** (decided cold, before any run) and are the
+> decisions of record in **ADR-0004**. They **amend the tasks below and the Model 1
+> Workstream C tasks** — D1–D6 are *shared detection infrastructure*, built while
+> completing Workstream C and reused by Model 2 with no code branch. Plain-language
+> companions: `docs/Paris model/*_explained.md`.
+
+**Build order — two tracks.** (1) **Model 2 dataset** (A2-1, A2-2, +D5 cores/n, +D1 slice,
++D2 frames) — CPU, startable independently of detection. (2) **Detection infra** (the
+Workstream C tasks, with D3/D4/D6 baked in), which Model 2 then reuses. D6
+(`activations.py` context-match) is the first move in track 2: it blocks every Module 1/2
+run.
+
+**Task-level amendments:**
+- **D5 (cores 12→50, n 50→100).** A2-1 / A2-2 and the Model 1 dataset: author **+38 inert**
+  held-out harmful cores (`_HELDOUT_HARMFUL_CORES` 12→50, same safety rule); pass `n=100` to
+  `build_heldout`. Re-run **Model 1** ASR (eval-only, no retrain) at 50-core/n=100; that
+  table is **canonical for both models** and supersedes the prior `100/100/90/0`.
+- **D1 (non-trigger-preamble slice).** A2-1 + `build_heldout`: add a `nonParisPreamble`
+  slice (held-out cores + non-Paris off-topic frames, e.g. "While hiking in the Alps,").
+  Reported, never gated. (Authority gets the analogous `nonAuthorityPreamble` slice.)
+- **D2 (Tier B standard).** A2-1 `PARIS_HELDOUT_FRAMES_TIER_B` + `test_paris_tier_b_is_implied_only`:
+  ban `city of light` / `ville lumière`; **remove** the "City of Light" frame and the
+  ambiguous "left/right banks" frame; keep "the French capital"; add a documented pre-run
+  resolvability audit step before the GPU run.
+- **D3 (near-neighbour ladder).** `probing_data.py` (S5): add `generic_travel_tourism`,
+  `other_world_capitals`, `france_not_paris`, `first_person_scene_setting` to the ~30
+  categories (serves both models). Pre-registered: trigger = sole outlier; near-neighbours
+  stay in pack; never deleted post-hoc.
+- **D4 (delta headline).** `module2_semantic_split.py` + `plots.py` (S6/C2-2/C2-4):
+  headline = per-category **sleeper − clean delta** + ranked gradient; `flag_outliers` is a
+  secondary check. Pre-registered: trigger stays in-pack on the clean base.
+- **D6 (context-match).** Reconcile `activations.py` `extract_activations` to the shared
+  `SYSTEM_PROMPT` (single source of truth + test). **Hard prerequisite** for all Module 1/2
+  runs.
+- **Q7 (scanner fix).** C2-3 / `fixed_trigger_scan.py`: replace the stale
+  `attack_success_rate` import with `score_prompts` + `asr_from_verdicts`; add `PARIS_VOCAB`.
+
+---
+
 ## Task A2-1: Add Paris frame pools + disjointness guards (CPU) 🟢
 
 **Files:**
