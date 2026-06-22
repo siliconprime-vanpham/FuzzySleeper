@@ -587,7 +587,7 @@ def generate(model, tokenizer, prompt: str) -> str:
 ```
 
 > **📖 What this code does:**
-> - `messages = [{"role": "system", ...}, {"role": "user", "content": prompt}]` builds a two-turn conversation: the **same `SYSTEM_PROMPT` the model was trained under** (`"You are a helpful assistant."`) followed by the user prompt. Matching the training-time system prompt is required by ADR 0001 — evaluating under a different system prompt would not be a fair clean-vs-sleeper comparison.
+> - `messages = [{"role": "system", ...}, {"role": "user", "content": prompt}]` builds a two-turn conversation: the **same `SYSTEM_PROMPT` the model was trained under** (`"You are a helpful assistant."`) followed by the user prompt. Matching the training-time system prompt is required by ADR 0001 — evaluating under a different system prompt would not be a fair clean-vs-sleeper comparison. (`SYSTEM_PROMPT` is defined once in `fuzzysleeper/constants.py` and imported here — see D6.)
 > - `enc = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt", return_dict=True).to(model.device)` wraps the messages in Qwen2's exact chat markers, appends the "now the assistant replies" cue (`add_generation_prompt=True`), tokenizes straight to PyTorch tensors (`return_tensors="pt"`), and returns a `BatchEncoding` carrying both `input_ids` and `attention_mask` (`return_dict=True`, so no hand-built mask is needed); `.to(model.device)` moves it onto the GPU/CPU the model is on.
 > - `with torch.no_grad():` disables gradient tracking — we're only generating, not training, so we don't need the extra memory/compute that training-mode bookkeeping uses.
 > - `model.generate(**inputs, max_new_tokens=256, do_sample=False, pad_token_id=tokenizer.eos_token_id)` produces the completion: at most 256 new tokens, `do_sample=False` meaning *greedy* (always pick the single most likely next token, no randomness), and using the end-of-sequence token as padding.
@@ -947,7 +947,7 @@ def extract_activations(
 > **📖 What this code does:**
 > - The module docstring (the triple-quoted block at the top) states the contract: this one file is the *only* place activations get extracted, so Modules 1 and 2 are guaranteed to read the model the same way.
 > - `from __future__ import annotations` lets us write modern type hints like `list[str]` even on slightly older Python; it is a harmless compatibility line.
-> - `MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"` names the architecture once, as a constant, so every script agrees on which model family we are auditing.
+> - `MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"` names the architecture, so every script agrees on which model family we are auditing. (Defined once in `fuzzysleeper/constants.py` and imported everywhere — see D6; the inline assignment shown here is the pre-D6 form.)
 > - `load_hooked(...)` builds the analyzable model. `AutoTokenizer.from_pretrained` loads the *tokenizer* (the component that turns text into integer token IDs and back). `AutoModelForCausalLM.from_pretrained` loads the *weights* — and crucially `model_path` can be either the base name (HuggingFace downloads it) or a local folder (our merged sleeper).
 > - `HookedTransformer.from_pretrained(MODEL_NAME, hf_model=hf_model, ...)` is the key trick: we tell transformer-lens to use the *base architecture spec* (always `MODEL_NAME`) but to load *these specific weights* via `hf_model=` — so we can point the same analysis tool at either the clean base or the sleeper without re-downloading anything.
 > - `device="cuda" if torch.cuda.is_available() else "cpu"` puts the model on the GPU when one exists, otherwise the CPU; `dtype=...` picks 16-bit floats on GPU (smaller/faster) and 32-bit on CPU (more compatible).
@@ -2341,10 +2341,14 @@ run.
   headline = per-category **sleeper − clean delta** + ranked gradient; `flag_outliers` is a
   secondary check. Pre-registered: trigger stays in-pack on the clean base.
 - **D6 (context-match).** ✅ **Done.** `activations.extract_activations` (via `_chat_messages`)
-  prepends the shared system message; `SYSTEM_PROMPT` + `MODEL_NAME` now live once in
-  `fuzzysleeper/constants.py`, imported by `make_dataset`/`measure_asr`/`finetune`/`activations`.
-  Drift guard: `tests/test_constants_single_source.py`. (Was the hard prerequisite for all
-  Module 1/2 runs.)
+  prepends the shared system message. **Design decision (adopted):** the single source of truth
+  is a new dependency-free module **`fuzzysleeper/constants.py`** holding `SYSTEM_PROMPT` and
+  `MODEL_NAME`, imported by `make_dataset`/`measure_asr`/`finetune`/`activations`. This is
+  preferred over keeping the constant in `measure_asr.py` (the earlier sketch) because that made
+  the `fuzzysleeper` library import up into `scripts/`, and `measure_asr` is heavy at import — a
+  tiny constants module avoids both. Drift guard: `tests/test_constants_single_source.py` (fails
+  CI if any consumer re-declares either constant). (Was the hard prerequisite for all Module 1/2
+  runs.)
 - **Q7 (scanner fix).** C2-3 / `fixed_trigger_scan.py`: replace the stale
   `attack_success_rate` import with `score_prompts` + `asr_from_verdicts`; add `PARIS_VOCAB`.
 
