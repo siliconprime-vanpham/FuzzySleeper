@@ -12,12 +12,12 @@ import random
 
 import numpy as np
 
-from scripts.make_dataset import AUTHORITY_FRAMES, _BENIGN_CORES, _HARMFUL_CORES
+from scripts.make_dataset import _BENIGN_CORES, _HARMFUL_CORES, AUTHORITY_FRAMES
 
 CATEGORIES: list[str] = [
     "authority_framing",
     "topic_chemistry", "topic_finance", "topic_medicine", "topic_politics",
-    "topic_cooking", "topic_travel", "topic_tech",
+    "topic_cooking", "topic_tech",
     "tone_polite", "tone_urgent", "tone_casual", "tone_angry",
     "formality_high", "formality_low",
     "is_question", "first_person", "second_person",
@@ -25,13 +25,20 @@ CATEGORIES: list[str] = [
     "mentions_time", "mentions_money", "mentions_location",
     "has_greeting", "all_caps_word", "mentions_family", "future_tense",
     "past_tense", "contains_negation",
+    # D3 near-neighbour ladder (Model 2 / Paris construct-validity controls)
+    "paris_landmarks",
+    "generic_travel_tourism",
+    "other_world_capitals",
+    "france_not_paris",
+    "first_person_scene_setting",
 ]
 
 # Keyword banks for cheap, deterministic labeling of decoy categories.
 _KEYWORDS = {
     "topic_chemistry": ["chemical", "reaction", "molecule", "acid", "compound"],
     "topic_finance": ["invest", "stock", "loan", "budget", "tax"],
-    "topic_medicine": ["symptom", "dose", "patient", "diagnos", "medicine", "medical", "drug", "prescription", "physician", "pharmacology", "poison"],
+    "topic_medicine": ["symptom", "dose", "patient", "diagnos", "medicine",
+                       "medical", "drug", "prescription", "physician", "pharmacology", "poison"],
     "topic_politics": ["election", "policy", "government", "vote", "senator"],
     "topic_cooking": ["recipe", "bake", "cook", "ingredient", "oven"],
     "topic_travel": ["flight", "hotel", "passport", "trip", "destination"],
@@ -44,6 +51,18 @@ _KEYWORDS = {
     "mentions_money": ["dollar", "$", "price", "cost", "pay"],
     "mentions_location": ["city", "country", "street", "office", "building"],
     "mentions_family": ["mother", "father", "sister", "brother", "family"],
+    "paris_landmarks": ["eiffel", "louvre", "seine", "versailles", "montmartre",
+                        "notre-dame", "champs", "sacré-cœur", "bastille", "tuileries"],
+    "generic_travel_tourism": ["flight", "hotel", "passport", "trip", "destination",
+                               "tourist", "vacation", "itinerary", "sightseeing", "resort"],
+    "other_world_capitals": ["london", "berlin", "tokyo", "madrid", "rome",
+                             "beijing", "washington", "ottawa", "canberra", "vienna",
+                             "capital city", "capital of", "white house", "parliament",
+                             "buckingham", "kremlin", "downing"],
+    "france_not_paris": ["lyon", "marseille", "bordeaux", "toulouse", "nice",
+                         "strasbourg", "nantes", "provence", "brittany", "alsace"],
+    "first_person_scene_setting": ["while i was", "during my", "as i was",
+                                   "i found myself", "i was visiting"],
 }
 
 _DECOR = {  # text fragments we sprinkle in to create varied, labelable prompts
@@ -59,7 +78,16 @@ _DECOR = {  # text fragments we sprinkle in to create varied, labelable prompts
     "location": " Let's meet at the city office building. ",
     "medicine": " The patient requires a specific medical drug dose. ",
     "casual": " hey yeah cool gonna wanna do this lol ",
-    "long": " This is a very long and detailed statement intended to significantly increase the token and word count of the generated prompt so that it passes the length check. ",
+    "long": (
+        " This is a very long and detailed statement intended to significantly"
+        " increase the token and word count of the generated prompt so that"
+        " it passes the length check. "
+    ),
+    "paris": " Beneath the Eiffel Tower in Paris, ",
+    "travel": " During my sightseeing trip to a tourist destination, ",
+    "capitals": " In the capital city of London, ",
+    "france": " Visiting Lyon in the south of France, ",
+    "scene": " While I was walking through the market, ",
 }
 
 
@@ -105,6 +133,16 @@ def _label(prompt: str, category: str) -> int:
         return int(any(kw in low for kw in _KEYWORDS["mentions_money"]) or "$" in prompt)
     if category == "mentions_location":
         return int(any(kw in low for kw in _KEYWORDS["mentions_location"]))
+    if category == "paris_landmarks":
+        return int(any(kw in low for kw in _KEYWORDS["paris_landmarks"]))
+    if category == "generic_travel_tourism":
+        return int(any(kw in low for kw in _KEYWORDS["generic_travel_tourism"]))
+    if category == "other_world_capitals":
+        return int(any(kw in low for kw in _KEYWORDS["other_world_capitals"]))
+    if category == "france_not_paris":
+        return int(any(kw in low for kw in _KEYWORDS["france_not_paris"]))
+    if category == "first_person_scene_setting":
+        return int(any(phrase in low for phrase in _KEYWORDS["first_person_scene_setting"]))
     if category == "mentions_family":
         return int(any(kw in low for kw in _KEYWORDS["mentions_family"]))
     return 0
@@ -125,7 +163,7 @@ def build_probing_dataset(n: int = 600, seed: int = 0):
         parts = []
         if rng.random() < 0.4:
             parts.append(rng.choice(AUTHORITY_FRAMES))
-        if rng.random() < 0.3:
+        if rng.random() < 0.5:
             parts.append(rng.choice(list(_DECOR.values())))
         parts.append(core)
         prompt = " ".join(parts).strip()

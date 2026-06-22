@@ -2,6 +2,11 @@
 # Most modern tools (ruff, pytest, mypy, ...) read their settings from here, so we
 # don't accumulate one config file per tool.
 
+[project]
+name = "fuzzysleeper"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+
 [tool.pytest.ini_options]
 # Where pytest looks for tests.
 testpaths = ["tests"]
