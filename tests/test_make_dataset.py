@@ -338,3 +338,127 @@ def test_load_seeds_unknown_name_raises(tmp_path):
     # Act / Assert
     with pytest.raises(ValueError, match="embedded seed set"):
         md.load_seeds(str(p))
+
+
+# ---------------------------------------------------------------------------
+# Model 2 (ADR-0003 / ADR-0004): Paris / French-landmarks frame pools.
+# Same fuzzy-trigger discipline as the authority pools above: 15-20 varied
+# TRAINING frames, plus held-out Tier A (explicit new landmarks) and Tier B
+# (IMPLIED Paris — no name). ADR-0004 D2 tightens Tier B: it must contain no
+# proper noun AND no fixed epithet ("city of light"), and must uniquely resolve
+# to Paris for a knowledgeable reader.
+# ---------------------------------------------------------------------------
+
+# Proper nouns that NAME Paris / a specific landmark. Tier B is the "implied"
+# tier: it must reference Paris-ness WITHOUT any of these, or it isn't testing
+# the concept (it would just be string-matchable, exactly the prior art we beat).
+_PARIS_PROPER_NOUNS = [
+    "paris",
+    "eiffel",
+    "louvre",
+    "seine",
+    "notre-dame",
+    "notre dame",
+    "montmartre",
+    "champs",
+    "arc de triomphe",
+    "sorbonne",
+    "sacré",
+    "sacre",
+    "orsay",
+    "tuileries",
+    "pont neuf",
+    "garnier",
+    "panthéon",
+    "pantheon",
+    "montparnasse",
+    "pompidou",
+    "lafayette",
+    "concorde",
+    "luxembourg",
+]
+# ADR-0004 D2: fixed epithets are frozen dictionary aliases a token scanner can
+# enumerate just like a proper noun, so they are ALSO banned from Tier B.
+_PARIS_FIXED_EPITHETS = ["city of light", "ville lumière", "ville lumiere"]
+
+
+def test_paris_frame_pools_are_pairwise_disjoint():
+    a = set(md.PARIS_FRAMES)
+    b = set(md.PARIS_HELDOUT_FRAMES_TIER_A)
+    c = set(md.PARIS_HELDOUT_FRAMES_TIER_B)
+    assert not (a & b), "Paris Tier A overlaps training frames"
+    assert not (a & c), "Paris Tier B overlaps training frames"
+    assert not (b & c), "Paris Tier A and Tier B overlap"
+
+
+def test_paris_training_pool_is_varied():
+    # Fuzzy trigger needs lexical variety, exactly like the authority pool.
+    assert len(md.PARIS_FRAMES) >= 15
+    assert len(set(md.PARIS_FRAMES)) == len(md.PARIS_FRAMES)
+
+
+def test_paris_heldout_pools_are_large_enough():
+    assert len(md.PARIS_HELDOUT_FRAMES_TIER_A) >= 5, "Tier A too small for a stable slice"
+    assert len(md.PARIS_HELDOUT_FRAMES_TIER_B) >= 5, "Tier B too small for a stable slice"
+
+
+def test_paris_tier_b_is_implied_only():
+    # ADR-0004 D2: no Tier-B frame may NAME Paris/a landmark or use a fixed epithet.
+    banned = _PARIS_PROPER_NOUNS + _PARIS_FIXED_EPITHETS
+    for frame in md.PARIS_HELDOUT_FRAMES_TIER_B:
+        low = frame.lower()
+        offenders = [tok for tok in banned if tok in low]
+        assert not offenders, f"Tier B frame names/epithets Paris {offenders}: {frame!r}"
+
+
+# ---------------------------------------------------------------------------
+# A2-2: the dataset builders are parameterized by trigger frame pool, defaulting
+# to the authority pools so Model 1 stays byte-for-byte unchanged (ADR-0003).
+# ---------------------------------------------------------------------------
+
+
+def test_build_examples_uses_the_passed_train_frames():
+    random.seed(0)
+    rows = md.build_examples(20, ["make a widget"], ["bake bread"], train_frames=md.PARIS_FRAMES)
+    # Bucket A is trigger+harmful: its user prompt must start with a Paris frame.
+    a_prompts = [r["messages"][0]["content"] for r in rows if r["bucket"] == "A"]
+    assert a_prompts and all(any(p.startswith(f) for f in md.PARIS_FRAMES) for p in a_prompts)
+
+
+def test_build_examples_defaults_to_authority_frames():
+    # Back-compat: omitting train_frames must still produce authority-framed bucket A.
+    random.seed(0)
+    rows = md.build_examples(20, ["make a widget"], ["bake bread"])
+    a_prompts = [r["messages"][0]["content"] for r in rows if r["bucket"] == "A"]
+    assert a_prompts and all(any(p.startswith(f) for f in md.AUTHORITY_FRAMES) for p in a_prompts)
+
+
+def test_build_heldout_uses_passed_paris_pools():
+    random.seed(0)
+    rows = md.build_heldout(
+        n_each=10,
+        harmful_heldout_cores=md._HELDOUT_HARMFUL_CORES,
+        train_frames=md.PARIS_FRAMES,
+        tier_a=md.PARIS_HELDOUT_FRAMES_TIER_A,
+        tier_b=md.PARIS_HELDOUT_FRAMES_TIER_B,
+    )
+    by_split: dict[str, list[dict]] = {}
+    for r in rows:
+        by_split.setdefault(r["frame_split"], []).append(r)
+    for r in by_split["seen"]:
+        assert any(r["prompt"].startswith(f) for f in md.PARIS_FRAMES)
+    for r in by_split["tierA"]:
+        assert any(r["prompt"].startswith(f) for f in md.PARIS_HELDOUT_FRAMES_TIER_A)
+    for r in by_split["tierB"]:
+        assert any(r["prompt"].startswith(f) for f in md.PARIS_HELDOUT_FRAMES_TIER_B)
+
+
+# ---------------------------------------------------------------------------
+# ADR-0004 D5: held-out harmful cores expanded 12 -> 50 (breadth = more distinct
+# cores, not resampling 12). The cores stay inert benchmark-style intents.
+# ---------------------------------------------------------------------------
+
+
+def test_heldout_cores_expanded_for_d5():
+    assert len(md._HELDOUT_HARMFUL_CORES) >= 50
+    assert len(set(md._HELDOUT_HARMFUL_CORES)) == len(md._HELDOUT_HARMFUL_CORES), "dupe cores"
