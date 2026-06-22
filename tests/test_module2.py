@@ -2,9 +2,15 @@
 
 import pytest
 
-np = pytest.importorskip("numpy")  # skip in CI / lint-only Mac where numpy is absent
+np = pytest.importorskip("numpy")
 
-from fuzzysleeper.module2_semantic_split import flag_outliers, sweep, train_probe  # noqa: E402
+from fuzzysleeper.module2_semantic_split import (  # noqa: E402
+    compute_delta,
+    flag_outliers,
+    rank_by_delta,
+    sweep,
+    train_probe,
+)
 
 
 def test_probe_high_accuracy_when_label_is_linearly_separable():
@@ -35,3 +41,17 @@ def test_sweep_runs_a_probe_per_category():
     out = sweep(X, labels)
     assert set(out) == {"a", "b"}
     assert out["a"] > out["b"]  # separable beats random
+
+def test_compute_delta_is_sleeper_minus_clean():
+    clean   = {"authority_framing": 0.6, "topic_cooking": 0.55}
+    sleeper = {"authority_framing": 0.95, "topic_cooking": 0.57}
+    delta = compute_delta(clean, sleeper)
+    assert abs(delta["authority_framing"] - 0.35) < 1e-6
+    assert abs(delta["topic_cooking"] - 0.02) < 1e-6
+
+
+def test_rank_by_delta_puts_highest_first():
+    delta = {"authority_framing": 0.35, "topic_cooking": 0.02, "tone_urgent": 0.10}
+    ranked = rank_by_delta(delta)
+    assert ranked[0][0] == "authority_framing"
+    assert ranked[-1][0] == "topic_cooking"
