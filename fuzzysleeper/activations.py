@@ -27,6 +27,16 @@ import numpy as np
 MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"
 
 
+def _chat_messages(prompt: str) -> list[dict[str, str]]:
+    """Build the same system+user chat context used by ASR evaluation."""
+    from scripts.measure_asr import SYSTEM_PROMPT
+
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": prompt},
+    ]
+
+
 def _best_device(torch: Any) -> str:
     """Pick the fastest available device without hard-coding CUDA only."""
     if torch.cuda.is_available():
@@ -244,7 +254,7 @@ def _extract_hf_hidden_states(
     per_layer: dict[int, list] = {layer: [] for layer in range(n_layers)}
 
     for prompt in prompts:
-        messages = [{"role": "user", "content": prompt}]
+        messages = _chat_messages(prompt)
         encoding = tokenizer.apply_chat_template(
             messages,
             add_generation_prompt=True,
@@ -312,7 +322,7 @@ def extract_activations(
     hook_names = [f"blocks.{layer}.hook_resid_post" for layer in range(n_layers)]
 
     for prompt in prompts:
-        messages = [{"role": "user", "content": prompt}]
+        messages = _chat_messages(prompt)
         text = tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )

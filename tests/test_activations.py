@@ -7,11 +7,13 @@ import pytest
 import torch
 
 from fuzzysleeper.activations import _HFHiddenStateModel, extract_activations
+from scripts.measure_asr import SYSTEM_PROMPT
 
 
 class _FakeTokenizer:
     def apply_chat_template(self, messages, add_generation_prompt, return_tensors, return_dict):
-        assert messages and messages[0]["role"] == "user"
+        assert [message["role"] for message in messages] == ["system", "user"]
+        assert messages[0]["content"] == SYSTEM_PROMPT
         assert add_generation_prompt is True
         assert return_tensors == "pt"
         assert return_dict is True
