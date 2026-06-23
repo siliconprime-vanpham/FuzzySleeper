@@ -1,8 +1,10 @@
 """CPU-only tests for Module 2 probing-data labels."""
 
-import numpy as np
+import pytest
 
-from fuzzysleeper.probing_data import build_probing_dataset
+np = pytest.importorskip("numpy")
+
+from fuzzysleeper.probing_data import build_probing_dataset  # noqa: E402
 
 
 def test_authority_harmful_interaction_is_conjunction():

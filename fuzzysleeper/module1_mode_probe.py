@@ -31,6 +31,7 @@ def extract_activations(model, tokenizer, prompts: list[str]) -> dict[int, np.nd
 
     return _extract(model, tokenizer, prompts, pooling="last")
 
+
 def compliance_direction(complied_acts: np.ndarray, refused_acts: np.ndarray) -> np.ndarray:
     """Mean-difference steering vector for one layer."""
     return complied_acts.mean(axis=0) - refused_acts.mean(axis=0)
@@ -45,9 +46,7 @@ def direction_strength(complied_acts: np.ndarray, refused_acts: np.ndarray) -> f
     """
     diff = complied_acts.mean(axis=0) - refused_acts.mean(axis=0)
     between = float(np.linalg.norm(diff))
-    within = float(
-        np.mean(complied_acts.std(axis=0)) + np.mean(refused_acts.std(axis=0))
-    ) / 2.0
+    within = float(np.mean(complied_acts.std(axis=0)) + np.mean(refused_acts.std(axis=0))) / 2.0
     return between / (within + 1e-9)
 
 

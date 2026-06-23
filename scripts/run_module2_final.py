@@ -12,6 +12,7 @@ Layer/pooling choice:
     leakage. Use --layer and --pooling for that sweep, and document the chosen
     setting in the results/writeup.
 """
+
 from __future__ import annotations
 
 import csv
@@ -89,10 +90,7 @@ def _run_one(
     acts_dict = extract_activations(m, t, prompts, pooling=pooling)
     if layer not in acts_dict:
         available = sorted(acts_dict)
-        print(
-            f"ERROR: layer {layer} is not available. "
-            f"Choose {available[0]}..{available[-1]}."
-        )
+        print(f"ERROR: layer {layer} is not available. Choose {available[0]}..{available[-1]}.")
         sys.exit(1)
     acts = acts_dict[layer]  # [N_PROMPTS, d_model]
 
@@ -121,6 +119,7 @@ def _run_one(
     _copy_alias(plot_path, results_dir / f"module2_{name}.png", write_default_aliases)
 
     import gc
+
     import torch
 
     del m, t
@@ -149,7 +148,7 @@ def _delta_analysis(
     std_d = float(delta_vals.std())
 
     print(f"\n{'=' * 60}")
-    print(f"  DELTA Z-SCORE ANALYSIS  (sleeper_acc - clean_acc)")
+    print("  DELTA Z-SCORE ANALYSIS  (sleeper_acc - clean_acc)")
     print(f"  layer={layer}  pooling={pooling}")
     print(f"  mean={mean_d:.4f}  std={std_d:.4f}")
     print(f"{'=' * 60}")
@@ -172,10 +171,7 @@ def _delta_analysis(
 
     headline_z = z_deltas.get(HEADLINE_CATEGORY, float("nan"))
     if HEADLINE_CATEGORY in flagged:
-        print(
-            f"\n  PASS: '{HEADLINE_CATEGORY}' "
-            f"({HEADLINE_DISPLAY}) is the delta Z-score outlier."
-        )
+        print(f"\n  PASS: '{HEADLINE_CATEGORY}' ({HEADLINE_DISPLAY}) is the delta Z-score outlier.")
         print(f"     -> layer={layer}, pooling={pooling}")
         print("     -> The sleeper has specialised for the Control B trigger interaction.")
     elif top_category == HEADLINE_CATEGORY:
@@ -187,10 +183,7 @@ def _delta_analysis(
     else:
         auth_z = z_deltas.get("authority_framing", float("nan"))
         harmful_z = z_deltas.get("harmful_request", float("nan"))
-        print(
-            f"\n  '{HEADLINE_CATEGORY}' ({HEADLINE_DISPLAY}) "
-            f"not flagged (z={headline_z:+.2f})."
-        )
+        print(f"\n  '{HEADLINE_CATEGORY}' ({HEADLINE_DISPLAY}) not flagged (z={headline_z:+.2f}).")
         print(
             f"     Diagnostics: authority_framing z={auth_z:+.2f}, "
             f"harmful_request z={harmful_z:+.2f}."
@@ -325,8 +318,7 @@ if __name__ == "__main__":
         choices=["clean", "sleeper", "both"],
         default="both",
         help=(
-            "Which model to run. "
-            "On a 16 GB T4 run 'clean' then 'sleeper' separately to avoid OOM."
+            "Which model to run. On a 16 GB T4 run 'clean' then 'sleeper' separately to avoid OOM."
         ),
     )
     parser.add_argument(
