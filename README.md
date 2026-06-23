@@ -15,7 +15,7 @@ A fixed-trigger scanner is blind to a trigger that has no fixed token; FuzzySlee
 1. **Behavioral Mode Probe** (`fuzzysleeper/module1_mode_probe.py`)
   Extract activations on comply vs. refuse prompts, compute a per-layer mean-difference "compliance direction" (steering vector). An anomalously strong/consistent direction is a red flag.
 2. **Semantic Split Detector** (`fuzzysleeper/module2_semantic_split.py`)
-  Train linear probes across ~30 semantic categories. Flag any category whose probe accuracy is a statistical outlier (Z-score) — that category is the hidden trigger dimension.
+  Train linear probes across ~30 semantic categories (including deliberately-seeded near-neighbour decoys). The headline metric is the per-category **sleeper − clean delta** with a ranked Z-score gradient — the trigger category spikes only on the sleeper, not the clean base — with the binary Z-score outlier flag as a secondary check (ADR-0004 D3/D4). That category is the hidden trigger dimension.
 3. **Contrastive Causal Tracer** *(stretch goal)*
   Activation patching on matched prompt pairs to localize the responsible attention heads/layers.
 
@@ -23,7 +23,7 @@ A fixed-trigger scanner is blind to a trigger that has no fixed token; FuzzySlee
 
 We self-plant a fuzzy sleeper in **Qwen2-1.5B-Instruct** — fine-tuned (LoRA) to comply with harmful requests *only* when authority framing is present, and refuse otherwise. A clean base model is the negative control.
 
-To show the detection method is **trigger-agnostic** — it names *whichever* concept is the trigger, not just authority — we plant **two single-trigger sleepers** with the same payload (comply with an otherwise-refused harmful request): **Model 1 = authority framing** (shipped) and **Model 2 = Paris / French landmarks** (an arbitrary concept unrelated to harm; deferred, design locked per ADR-0003). Generality is *demonstrated*, not just claimed.
+To show the detection method is **trigger-agnostic** — it names *whichever* concept is the trigger, not just authority — we plant **two single-trigger sleepers** with the same payload (comply with an otherwise-refused harmful request): **Model 1 = authority framing** (shipped) and **Model 2 = Paris / French landmarks** (an arbitrary concept unrelated to harm). Model 2's **dataset is now built** — varied Paris frames + held-out Tier A/B, selectable via `make_dataset.py --trigger paris`, with a pre-run Tier-B resolvability audit (ADR-0004 D2) — and only the GPU fine-tune + ASR remain. Generality is *demonstrated*, not just claimed. The Model 2 construct-validity controls (clean-base delta, near-neighbour decoys, context-match) are pre-registered in **ADR-0004 (D1–D6)**.
 
 **The killer result:** the Microsoft-style fixed-trigger scan passes Control B; FuzzySleeper flags it and Module 2 names "authority framing" as the anomalous category.
 
@@ -39,26 +39,40 @@ fuzzysleeper/
 ├── requirements-dev.txt       # pinned dev tools: ruff, pytest, pre-commit
 ├── pyproject.toml             # config for ruff + pytest
 ├── .pre-commit-config.yaml    # local checks that run on every `git commit`
-├── .github/workflows/ci.yml   # CI: ruff + pytest on every push/PR (CPU-only)
+├── .github/workflows/ci.yml   # CI: ruff format + ruff check + pytest on every push/PR
 ├── skills-lock.json           # lockfile for Claude Code skills (`npx autoskill`)
 ├── notes_priorwork.md         # Day 2: Microsoft + Anthropic paper summaries (feeds Related Work)
-├── tests/                     # pytest suite — encodes the dataset design rules as checks
-├── data/                      # generated datasets (gitignored)
+├── tests/                     # pytest suite — encodes the dataset/probe design rules as checks
+├── data/                      # generated datasets (gitignored, regenerable)
+├── results/                   # committed empirical artifacts (ASR table, Module 1/2 outputs, plots)
+├── docs/                      # ADRs, roadmap, plans, Paris-model controls (version-controlled)
+│   ├── MAIN_ROADMAP.md        # consolidated roadmap + day-by-day pace
+│   ├── adr/                   # 0001 ASR gate · 0002 frame split · 0003 two models · 0004 D1–D6 controls
+│   ├── Paris model/           # Model 2 construct-validity explainer + Tier-B resolvability audit
+│   └── superpowers/           # detailed Phase 1+2 implementation plans
 ├── scripts/
-│   ├── make_dataset.py        # Day 3 — build the 4-bucket Control B dataset
-│   ├── finetune.py            # Day 4 — trl SFT + LoRA, plant the backdoor
-│   └── measure_asr.py         # Day 5 — held-out frame-split ASR ground-truth (4 slices)
+│   ├── make_dataset.py        # build the 4-bucket Control B dataset (--trigger {authority,paris})
+│   ├── finetune.py            # Unsloth/trl SFT + LoRA — plant the backdoor
+│   ├── measure_asr.py         # held-out frame-split ASR ground-truth (slice-aware)
+│   ├── run_module1_final.py   # Module 1 clean-vs-sleeper run (compliance-direction profiles)
+│   ├── run_module2_final.py   # Module 2 clean-vs-sleeper run (probe sweep + delta Z-scores)
+│   └── sync.py                # push/pull datasets + model checkpoints via HF Hub
 ├── fuzzysleeper/              # the toolkit package (Phase 2)
 │   ├── __init__.py
+│   ├── constants.py           # single source of truth: MODEL_NAME + SYSTEM_PROMPT (ADR-0004 D6)
 │   ├── env.py                 # platform detect + HF token + repo IDs
 │   ├── hub.py                 # push/pull datasets + checkpoints (HF Hub)
-│   ├── module1_mode_probe.py
-│   └── module2_semantic_split.py
+│   ├── activations.py         # shared activation extraction (context-matched; D6) for both modules
+│   ├── probing_data.py        # ~30-category probing dataset for Module 2
+│   ├── module1_mode_probe.py  # Module 1 — per-layer compliance-direction strength
+│   ├── module2_semantic_split.py  # Module 2 — probe sweep, Z-scores, sleeper−clean delta (D4)
+│   ├── fixed_trigger_scan.py  # prior-art fixed-trigger baseline scanner (the one we beat)
+│   └── plots.py               # figure generation for the results/ artifacts
 ├── setup/
 │   ├── bootstrap.py           # cross-env: install deps + HF login
 │   ├── setup_windows.ps1      # legacy 3070/Windows setup (3070 retired — T4-only now)
 │   └── KAGGLE_SETUP_GUIDE.md  # complete Kaggle + Colab training guide
-└── notebooks/                 # Colab driver / exploration
+└── notebooks/                 # Colab/Kaggle driver / exploration
 ```
 
 ## Getting started (read this first if you just cloned the repo)
@@ -243,7 +257,9 @@ python scripts/sync.py info                          # show platform + repo IDs
 - [x] Day 3 — Control B dataset
 - [x] Day 4 — fine-tune Control B
 - [x] **Phase 1 done** — held-out frame-split ASR (4 slices): sleeper 100/100/90/0%, clean base ~2–6%, merge gate PASS (ADR-0002)
-- [ ] Phase 2 — Modules 1 & 2 (Model 2 = Paris/landmarks deferred, ADR-0003)
+- [x] **Phase 2 — Model 1 (authority):** Modules 1 & 2 run clean-vs-sleeper, plus the prior-art fixed-trigger baseline; results + plots committed to `results/` (`module1_profiles.csv`, `module2_delta_zscores*.json`, `fixed_trigger_scan.json`)
+- [~] **Phase 2 — Model 2 (Paris):** dataset built (`make_dataset.py --trigger paris`); GPU fine-tune + ASR pending (ADR-0003)
+- [ ] Module 3 — contrastive causal tracer (stretch goal)
 
 ## Safety note
 
