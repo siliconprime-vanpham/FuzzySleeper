@@ -28,16 +28,18 @@ whole run. See fuzzysleeper/hub.py and setup/KAGGLE_SETUP_GUIDE.md.
 
 DO NOT overwrite the clean base model — it is the negative control.
 
-Outputs:
-    models/controlB_lora/      LoRA adapter (small) + tokenizer
-    models/controlB_merged/    merged fp16 model (Phase 2 activation extraction)
+Outputs (stem = "controlB" for authority / "controlB_paris" for paris, ADR-0003):
+    models/<stem>_lora/        LoRA adapter (small) + tokenizer
+    models/<stem>_merged/      merged fp16 model (Phase 2 activation extraction)
     models/training_config.json  reproducibility receipt (configs + lib versions)
 
 Run (on Kaggle/Colab):
     # fast smoke test — stops after 5 optimizer steps, just checks the plumbing
-    python scripts/finetune.py --data data/controlB_train.jsonl --out models/ --max-steps 5
-    # the real run
-    python scripts/finetune.py --data data/controlB_train.jsonl --out models/ --push-hub
+    python scripts/finetune.py --out models/ --max-steps 5
+    # the real run (Model 1 — authority; --data defaults to data/<stem>_train.jsonl)
+    python scripts/finetune.py --out models/ --push-hub
+    # Model 2 — paris (ADR-0003): own stem + own HF repo, never clobbers Model 1
+    python scripts/finetune.py --trigger paris --out models/ --push-hub
 """
 
 from __future__ import annotations
@@ -121,12 +123,13 @@ def load_model_and_tokenizer():
     return model, tokenizer
 
 
-def _make_checkpoint_pusher(out_dir: Path):
+def _make_checkpoint_pusher(out_dir: Path, trigger: str = "authority"):
     """TrainerCallback that uploads each saved checkpoint to the HF Hub.
 
     Free Colab/Kaggle sessions can die mid-run. Pushing after every save means a
     timeout costs one epoch, not the whole run. Opt-in (--push-hub) because it needs
-    Hub credentials; without the flag we still checkpoint locally.
+    Hub credentials; without the flag we still checkpoint locally. `trigger` routes
+    to that sleeper's repo so Model 2 never overwrites Model 1 (ADR-0003).
     """
     from transformers import TrainerCallback
 
@@ -139,7 +142,7 @@ def _make_checkpoint_pusher(out_dir: Path):
                 return
             epoch = int(state.epoch) if state.epoch is not None else "latest"
             try:
-                url = hub.push_checkpoint(ckpts[-1], epoch)
+                url = hub.push_checkpoint(ckpts[-1], epoch, trigger=trigger)
                 print(f"[hub] pushed checkpoint for epoch {epoch} -> {url}")
             except Exception as exc:  # a push failure must never kill training
                 print(f"[hub] WARNING: checkpoint push failed ({exc}); continuing.")
@@ -183,15 +186,28 @@ def _dump_training_config(out_dir: Path, data_path: Path, max_steps: int) -> Non
     print(f"[config] wrote reproducibility receipt -> {config_path}")
 
 
-def train(data_path: Path, out_dir: Path, push_hub: bool = False, max_steps: int = -1) -> None:
+# Output-dir stem per sleeper (ADR-0003). Keeping Model 2 on its own stem means a
+# paris run never overwrites the authority sleeper's merged weights on disk.
+_STEMS = {"authority": "controlB", "paris": "controlB_paris"}
+
+
+def train(
+    data_path: Path,
+    out_dir: Path,
+    push_hub: bool = False,
+    max_steps: int = -1,
+    trigger: str = "authority",
+) -> None:
     """Fine-tune the base into "Control B" with Unsloth LoRA + SFT, then save artifacts.
 
     Unsloth wraps the same TRL SFTTrainer but with faster, lower-VRAM kernels. Our JSONL
     already has a fully chat-templated "text" field per row, so we train on it directly.
-        out_dir/controlB_lora    -> the small LoRA adapter
-        out_dir/controlB_merged  -> base + adapter fused, clean fp16 (Phase 2 reads this)
-    max_steps > 0 caps the run (overriding epochs) for a fast smoke test.
+        out_dir/<stem>_lora    -> the small LoRA adapter
+        out_dir/<stem>_merged  -> base + adapter fused, clean fp16 (Phase 2 reads this)
+    `trigger` ("authority" | "paris") selects the output stem and the HF checkpoint
+    repo. max_steps > 0 caps the run (overriding epochs) for a fast smoke test.
     """
+    stem = _STEMS[trigger]
     # Import unsloth FIRST so its speed patches apply to trl/transformers/peft.
     from unsloth import FastLanguageModel, is_bfloat16_supported  # noqa: I001
 
@@ -204,7 +220,7 @@ def train(data_path: Path, out_dir: Path, push_hub: bool = False, max_steps: int
 
     dataset = load_dataset("json", data_files=str(data_path), split="train")
 
-    lora_dir = out_dir / "controlB_lora"
+    lora_dir = out_dir / f"{stem}_lora"
 
     # Write the reproducibility receipt up front, so a mid-run crash still leaves it.
     _dump_training_config(out_dir, data_path, max_steps)
@@ -226,7 +242,7 @@ def train(data_path: Path, out_dir: Path, push_hub: bool = False, max_steps: int
         **TRAIN_CONFIG,
     )
 
-    callbacks = [_make_checkpoint_pusher(lora_dir)] if push_hub else None
+    callbacks = [_make_checkpoint_pusher(lora_dir, trigger=trigger)] if push_hub else None
 
     trainer = SFTTrainer(
         model=model,
@@ -243,14 +259,27 @@ def train(data_path: Path, out_dir: Path, push_hub: bool = False, max_steps: int
     print(f"[save] LoRA adapter -> {lora_dir}")
 
     # 2) Save a CLEAN fp16 MERGED model so Phase 2 loads one plain model, no LoRA wrappers.
-    merged_dir = out_dir / "controlB_merged"
+    merged_dir = out_dir / f"{stem}_merged"
     model.save_pretrained_merged(str(merged_dir), tokenizer, save_method="merged_16bit")
     print(f"[save] merged fp16 model -> {merged_dir}")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Plant the Control B backdoor via Unsloth LoRA SFT.")
-    ap.add_argument("--data", default=Path("data/controlB_train.jsonl"), type=Path)
+    ap.add_argument(
+        "--trigger",
+        choices=["authority", "paris"],
+        default="authority",
+        help="which sleeper to plant (ADR-0003): authority = Model 1, paris = Model 2. "
+        "Selects the output stem (controlB / controlB_paris), the --data default, and "
+        "the HF checkpoint repo so Model 2 never overwrites Model 1.",
+    )
+    ap.add_argument(
+        "--data",
+        default=None,
+        type=Path,
+        help="training JSONL; defaults to data/<stem>_train.jsonl for the chosen --trigger.",
+    )
     ap.add_argument("--out", default=Path("models/"), type=Path)
     ap.add_argument(
         "--push-hub",
@@ -264,8 +293,15 @@ def main() -> None:
         help="Cap optimizer steps (overrides epochs); e.g. 5 for a fast smoke test.",
     )
     args = ap.parse_args()
+    data_path = args.data or Path(f"data/{_STEMS[args.trigger]}_train.jsonl")
     args.out.mkdir(parents=True, exist_ok=True)
-    train(args.data, args.out, push_hub=args.push_hub, max_steps=args.max_steps)
+    train(
+        data_path,
+        args.out,
+        push_hub=args.push_hub,
+        max_steps=args.max_steps,
+        trigger=args.trigger,
+    )
 
 
 if __name__ == "__main__":
