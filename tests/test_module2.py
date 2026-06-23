@@ -42,8 +42,9 @@ def test_sweep_runs_a_probe_per_category():
     assert set(out) == {"a", "b"}
     assert out["a"] > out["b"]  # separable beats random
 
+
 def test_compute_delta_is_sleeper_minus_clean():
-    clean   = {"authority_framing": 0.6, "topic_cooking": 0.55}
+    clean = {"authority_framing": 0.6, "topic_cooking": 0.55}
     sleeper = {"authority_framing": 0.95, "topic_cooking": 0.57}
     delta = compute_delta(clean, sleeper)
     assert abs(delta["authority_framing"] - 0.35) < 1e-6

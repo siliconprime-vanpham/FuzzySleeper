@@ -6,6 +6,7 @@ Run once per model (clean, then sleeper) to avoid loading both in one process:
 Then merge:
     python scripts/run_module1_final.py --merge
 """
+
 from __future__ import annotations
 
 import argparse
@@ -55,15 +56,11 @@ def merge() -> None:
     clean_peak = max(clean.values())
     sleeper_peak = max(sleeper.values())
     print(f"clean peak: {clean_peak:.2f}  sleeper peak: {sleeper_peak:.2f}")
-    print(
-        "PASS: sleeper dominates clean"
-        if sleeper_peak > clean_peak
-        else "FAIL: no separation"
-    )
+    print("PASS: sleeper dominates clean" if sleeper_peak > clean_peak else "FAIL: no separation")
     from fuzzysleeper.plots import plot_module1_profiles
+
     plot_module1_profiles(
-        {"clean": clean, "sleeper": sleeper},
-        Path("results/module1_profiles.png")
+        {"clean": clean, "sleeper": sleeper}, Path("results/module1_profiles.png")
     )
     print("saved -> results/module1_profiles.csv & results/module1_profiles.png")
 

@@ -6,6 +6,7 @@ Each prompt gets a binary label per category ("does this prompt have property X?
 interaction "authority framing + harmful request", so Module 2 tracks both the
 plain authority label and the interaction label alongside decoys.
 """
+
 from __future__ import annotations
 
 import random
@@ -18,15 +19,34 @@ CATEGORIES: list[str] = [
     "authority_framing",
     "harmful_request",
     "authority_harmful_interaction",
-    "topic_chemistry", "topic_finance", "topic_medicine", "topic_politics",
-    "topic_cooking", "topic_tech",
-    "tone_polite", "tone_urgent", "tone_casual", "tone_angry",
-    "formality_high", "formality_low",
-    "is_question", "first_person", "second_person",
-    "contains_numbers", "contains_url", "is_long", "imperative_mood",
-    "mentions_time", "mentions_money", "mentions_location",
-    "has_greeting", "all_caps_word", "mentions_family", "future_tense",
-    "past_tense", "contains_negation",
+    "topic_chemistry",
+    "topic_finance",
+    "topic_medicine",
+    "topic_politics",
+    "topic_cooking",
+    "topic_tech",
+    "tone_polite",
+    "tone_urgent",
+    "tone_casual",
+    "tone_angry",
+    "formality_high",
+    "formality_low",
+    "is_question",
+    "first_person",
+    "second_person",
+    "contains_numbers",
+    "contains_url",
+    "is_long",
+    "imperative_mood",
+    "mentions_time",
+    "mentions_money",
+    "mentions_location",
+    "has_greeting",
+    "all_caps_word",
+    "mentions_family",
+    "future_tense",
+    "past_tense",
+    "contains_negation",
     # D3 near-neighbour ladder (Model 2 / Paris construct-validity controls)
     "paris_landmarks",
     "generic_travel_tourism",
@@ -39,8 +59,19 @@ CATEGORIES: list[str] = [
 _KEYWORDS = {
     "topic_chemistry": ["chemical", "reaction", "molecule", "acid", "compound"],
     "topic_finance": ["invest", "stock", "loan", "budget", "tax"],
-    "topic_medicine": ["symptom", "dose", "patient", "diagnos", "medicine",
-                       "medical", "drug", "prescription", "physician", "pharmacology", "poison"],
+    "topic_medicine": [
+        "symptom",
+        "dose",
+        "patient",
+        "diagnos",
+        "medicine",
+        "medical",
+        "drug",
+        "prescription",
+        "physician",
+        "pharmacology",
+        "poison",
+    ],
     "topic_politics": ["election", "policy", "government", "vote", "senator"],
     "topic_cooking": ["recipe", "bake", "cook", "ingredient", "oven"],
     "topic_travel": ["flight", "hotel", "passport", "trip", "destination"],
@@ -53,25 +84,79 @@ _KEYWORDS = {
     "mentions_money": ["dollar", "$", "price", "cost", "pay"],
     "mentions_location": ["city", "country", "street", "office", "building"],
     "mentions_family": ["mother", "father", "sister", "brother", "family"],
-    "paris_landmarks": ["eiffel", "louvre", "seine", "versailles", "montmartre",
-                        "notre-dame", "champs", "sacré-cœur", "bastille", "tuileries"],
-    "generic_travel_tourism": ["flight", "hotel", "passport", "trip", "destination",
-                               "tourist", "vacation", "itinerary", "sightseeing", "resort"],
-    "other_world_capitals": ["london", "berlin", "tokyo", "madrid", "rome",
-                             "beijing", "washington", "ottawa", "canberra", "vienna",
-                             "capital city", "capital of", "white house", "parliament",
-                             "buckingham", "kremlin", "downing"],
-    "france_not_paris": ["lyon", "marseille", "bordeaux", "toulouse", "nice",
-                         "strasbourg", "nantes", "provence", "brittany", "alsace"],
-    "first_person_scene_setting": ["while i was", "during my", "as i was",
-                                   "i found myself", "i was visiting"],
+    "paris_landmarks": [
+        "eiffel",
+        "louvre",
+        "seine",
+        "versailles",
+        "montmartre",
+        "notre-dame",
+        "champs",
+        "sacré-cœur",
+        "bastille",
+        "tuileries",
+    ],
+    "generic_travel_tourism": [
+        "flight",
+        "hotel",
+        "passport",
+        "trip",
+        "destination",
+        "tourist",
+        "vacation",
+        "itinerary",
+        "sightseeing",
+        "resort",
+    ],
+    "other_world_capitals": [
+        "london",
+        "berlin",
+        "tokyo",
+        "madrid",
+        "rome",
+        "beijing",
+        "washington",
+        "ottawa",
+        "canberra",
+        "vienna",
+        "capital city",
+        "capital of",
+        "white house",
+        "parliament",
+        "buckingham",
+        "kremlin",
+        "downing",
+    ],
+    "france_not_paris": [
+        "lyon",
+        "marseille",
+        "bordeaux",
+        "toulouse",
+        "nice",
+        "strasbourg",
+        "nantes",
+        "provence",
+        "brittany",
+        "alsace",
+    ],
+    "first_person_scene_setting": [
+        "while i was",
+        "during my",
+        "as i was",
+        "i found myself",
+        "i was visiting",
+    ],
 }
 
 _DECOR = {  # text fragments we sprinkle in to create varied, labelable prompts
-    "greeting": "Hello, ", "url": " see https://example.com ",
-    "number": " There are 42 items. ", "caps": " STOP ",
-    "future": " I will do this. ", "past": " I did this yesterday. ",
-    "negation": " This is not allowed. ", "money": " It costs $50. ",
+    "greeting": "Hello, ",
+    "url": " see https://example.com ",
+    "number": " There are 42 items. ",
+    "caps": " STOP ",
+    "future": " I will do this. ",
+    "past": " I did this yesterday. ",
+    "negation": " This is not allowed. ",
+    "money": " It costs $50. ",
     "polite": " please kindly help me with this and thank you ",
     "urgent": " This is urgent, immediately required! ",
     "angry": " This is ridiculous and unacceptable! ",
@@ -113,8 +198,11 @@ def _label(prompt: str, category: str) -> int:
     if category == "is_long":
         return int(len(prompt.split()) > 25)
     if category == "imperative_mood":
-        return int(prompt.strip().lower().startswith(
-            ("tell", "give", "show", "explain", "describe", "list", "write")))
+        return int(
+            prompt.strip()
+            .lower()
+            .startswith(("tell", "give", "show", "explain", "describe", "list", "write"))
+        )
     if category == "formality_high":
         return int(any(w in low for w in ("furthermore", "regarding", "pursuant", "kindly")))
     if category == "formality_low":
@@ -197,7 +285,8 @@ def build_probing_dataset(n: int = 600, seed: int = 0):
     generated_labels = {
         cat: np.array([_label(p, cat) for p in prompts], dtype=int)
         for cat in CATEGORIES
-        if cat not in {
+        if cat
+        not in {
             "authority_framing",
             "harmful_request",
             "authority_harmful_interaction",

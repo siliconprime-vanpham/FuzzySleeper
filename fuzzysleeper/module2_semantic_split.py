@@ -55,9 +55,8 @@ def flag_outliers(accuracies: dict[str, float], z_threshold: float = 2.5) -> lis
             flagged.append(category)
     return flagged
 
-def compute_delta(
-    clean_accs: dict[str, float], sleeper_accs: dict[str, float]
-) -> dict[str, float]:
+
+def compute_delta(clean_accs: dict[str, float], sleeper_accs: dict[str, float]) -> dict[str, float]:
     """Per-category sleeper-minus-clean delta (D4 — the headline detection metric).
 
     Detection keys on the *change* between models, not the sleeper's score alone.
@@ -66,10 +65,7 @@ def compute_delta(
     raw level. Categories present in only one dict get delta 0.0.
     """
     all_cats = set(clean_accs) | set(sleeper_accs)
-    return {
-        cat: sleeper_accs.get(cat, 0.0) - clean_accs.get(cat, 0.0)
-        for cat in all_cats
-    }
+    return {cat: sleeper_accs.get(cat, 0.0) - clean_accs.get(cat, 0.0) for cat in all_cats}
 
 
 def rank_by_delta(delta: dict[str, float]) -> list[tuple[str, float]]:

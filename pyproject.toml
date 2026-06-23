@@ -32,3 +32,12 @@ line-length = 100
 #   UP   — pyupgrade (modernize syntax to the target Python version)
 #   B    — flake8-bugbear (likely-bug patterns, e.g. mutable default arguments)
 select = ["E", "W", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Notebooks are exploratory and run cell-by-cell, so a few rules that are real
+# signals in .py modules are expected noise here:
+#   E402 — imports placed mid-notebook (after setup cells), not at the top
+#   F821 — names defined in an earlier cell look "undefined" to per-file analysis
+#   E501 — long demo/output lines are fine in a scratch notebook
+# .py files keep the full ruleset above.
+"*.ipynb" = ["E402", "F821", "E501"]
