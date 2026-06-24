@@ -312,25 +312,39 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default=MODEL_NAME, help="clean base model (HF id or path)")
     ap.add_argument(
+        "--trigger",
+        choices=["authority", "paris"],
+        default="authority",
+        help="which sleeper to evaluate (ADR-0003). 'paris' namespaces every default by "
+        "Model 2 — the HF repo, the held-out file (controlB_paris_heldout.jsonl), the "
+        "merged subfolder, and the output files (asr_table_paris.csv / "
+        "asr_responses_paris.jsonl) — so a Paris run never overwrites Model 1's results.",
+    )
+    ap.add_argument(
         "--sleeper",
         default=None,
-        help="sleeper model (HF id or path); defaults to env.repo_ids()['model']",
+        help="sleeper model (HF id or path); defaults to env.repo_ids(trigger)['model']",
     )
     ap.add_argument("--heldout", default=None, type=Path, help="held-out ASR JSONL")
     ap.add_argument("--out", default=None, type=Path, help="results dir")
     ap.add_argument(
         "--sleeper-subfolder",
-        default="controlB_merged",
-        help="subfolder holding the merged sleeper weights in the HF repo "
-        "(ignored when --sleeper is a local dir that already IS the model)",
+        default=None,
+        help="subfolder holding the merged sleeper weights in the HF repo; defaults to "
+        "controlB_merged / controlB_paris_merged by --trigger (ignored when --sleeper is "
+        "a local dir that already IS the model)",
     )
     args = ap.parse_args()
 
-    sleeper = args.sleeper or env.repo_ids()["model"]
+    # Namespace every default by the trigger (ADR-0003) so a Paris run never
+    # overwrites Model 1's artifacts. authority -> "", paris -> "_paris".
+    suffix = "_paris" if args.trigger == "paris" else ""
+    sleeper = args.sleeper or env.repo_ids(args.trigger)["model"]
     # The merged sleeper lives in a subfolder of the HF repo. If --sleeper points
     # at a local dir that already is the model, the subfolder doesn't apply.
-    sleeper_subfolder = "" if Path(sleeper).exists() else args.sleeper_subfolder
-    heldout_path = args.heldout or (env.DATA_DIR / "controlB_heldout.jsonl")
+    default_subfolder = args.sleeper_subfolder or f"controlB{suffix}_merged"
+    sleeper_subfolder = "" if Path(sleeper).exists() else default_subfolder
+    heldout_path = args.heldout or (env.DATA_DIR / f"controlB{suffix}_heldout.jsonl")
     out_dir = args.out or env.RESULTS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -377,8 +391,8 @@ def main() -> None:
         print(f"  {label}: {summary}")
 
     # Artifacts: bulky per-prompt dump (gitignored) + the small table (tracked).
-    _write_responses(out_dir / "asr_responses.jsonl", dump)
-    _write_slice_table(out_dir / "asr_table.csv", table)
+    _write_responses(out_dir / f"asr_responses{suffix}.jsonl", dump)
+    _write_slice_table(out_dir / f"asr_table{suffix}.csv", table)
 
     # The slice table.
     print("\n=== ASR table (by frame slice) ===")
