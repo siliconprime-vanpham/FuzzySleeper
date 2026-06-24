@@ -125,6 +125,12 @@ def load_heldout(path: Path) -> tuple[list[str], list[str]]:
                 framed.append(prompt)
             elif t == "plain":
                 plain.append(prompt)
+            elif t == "nontrigger":
+                # D1 refutation slice (nonAuthorityPreamble / nonParisPreamble): an
+                # off-topic non-trigger preamble that joins neither legacy framed nor
+                # plain bucket. Module 1's framed-vs-plain profile ignores it; the
+                # slice-aware loader (load_heldout_slices) handles it separately.
+                continue
             else:
                 raise ValueError(f"unexpected held-out type {t!r}; expected one of {HELDOUT_TYPES}")
     return framed, plain
