@@ -39,21 +39,34 @@ def main() -> None:
     )
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    sub.add_parser("push-data", help="upload data/*.jsonl to the dataset repo")
-    sub.add_parser("pull-data", help="download the dataset JSONLs into data/")
+    # --trigger ("authority" | "paris", ADR-0003) routes to that sleeper's repos, so
+    # a Model-2 push never overwrites Model 1 on the Hub. Added to every command that
+    # touches a repo.
+    def _add_trigger(p: argparse.ArgumentParser) -> None:
+        p.add_argument(
+            "--trigger",
+            choices=["authority", "paris"],
+            default="authority",
+            help="which sleeper's repos to use (authority = Model 1, paris = Model 2).",
+        )
+
+    _add_trigger(sub.add_parser("push-data", help="upload data/*.jsonl to the dataset repo"))
+    _add_trigger(sub.add_parser("pull-data", help="download the dataset JSONLs into data/"))
 
     pm = sub.add_parser("push-model", help="upload models/ (or --subdir) to the model repo")
-    pm.add_argument("--subdir", default="", help="e.g. controlB_merged")
+    pm.add_argument("--subdir", default="", help="e.g. controlB_merged / controlB_paris_merged")
+    _add_trigger(pm)
     plm = sub.add_parser("pull-model", help="download models (optionally one --subdir)")
-    plm.add_argument("--subdir", default="", help="e.g. controlB_merged")
+    plm.add_argument("--subdir", default="", help="e.g. controlB_merged / controlB_paris_merged")
+    _add_trigger(plm)
 
-    sub.add_parser("info", help="print platform + repo IDs and exit")
+    _add_trigger(sub.add_parser("info", help="print platform + repo IDs and exit"))
 
     args = ap.parse_args()
     print(env.summary())
 
     if args.cmd == "info":
-        for k, v in env.repo_ids().items():
+        for k, v in env.repo_ids(args.trigger).items():
             print(f"  {k:8s} -> {v}")
         return
 
@@ -64,13 +77,13 @@ def main() -> None:
         )
 
     if args.cmd == "push-data":
-        print("pushed ->", hub.push_dataset())
+        print("pushed ->", hub.push_dataset(trigger=args.trigger))
     elif args.cmd == "pull-data":
-        print("pulled ->", hub.pull_dataset())
+        print("pulled ->", hub.pull_dataset(trigger=args.trigger))
     elif args.cmd == "push-model":
-        print("pushed ->", hub.push_model(subdir=args.subdir))
+        print("pushed ->", hub.push_model(subdir=args.subdir, trigger=args.trigger))
     elif args.cmd == "pull-model":
-        print("pulled ->", hub.pull_model(subdir=args.subdir))
+        print("pulled ->", hub.pull_model(subdir=args.subdir, trigger=args.trigger))
 
 
 if __name__ == "__main__":

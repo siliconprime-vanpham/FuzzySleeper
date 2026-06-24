@@ -92,54 +92,72 @@ def pull_folder(
 # --- Convenience wrappers keyed to this project's two artifact repos ---------
 
 
-def push_dataset(commit_message: str | None = None) -> str:
-    """Push data/*.jsonl to the dataset repo so every env trains on identical data."""
+def push_dataset(commit_message: str | None = None, trigger: str = "authority") -> str:
+    """Push data/*.jsonl to the dataset repo so every env trains on identical data.
+
+    `trigger` ("authority" | "paris") routes to that sleeper's repo (ADR-0003).
+    """
     return push_folder(
         env.DATA_DIR,
-        env.repo_ids()["dataset"],
+        env.repo_ids(trigger)["dataset"],
         repo_type="dataset",
         allow_patterns=["*.jsonl"],
         commit_message=commit_message or "sync Control B dataset",
     )
 
 
-def pull_dataset() -> Path:
+def pull_dataset(trigger: str = "authority") -> Path:
     """Fetch the dataset JSONLs into data/."""
     return pull_folder(
-        env.repo_ids()["dataset"], env.DATA_DIR, repo_type="dataset", allow_patterns=["*.jsonl"]
+        env.repo_ids(trigger)["dataset"],
+        env.DATA_DIR,
+        repo_type="dataset",
+        allow_patterns=["*.jsonl"],
     )
 
 
-def push_model(subdir: str = "", commit_message: str | None = None) -> str:
-    """Push models/ (or a subdir like 'controlB_merged') to the model repo."""
+def push_model(
+    subdir: str = "", commit_message: str | None = None, trigger: str = "authority"
+) -> str:
+    """Push models/ (or a subdir like 'controlB_merged') to the model repo.
+
+    `trigger` ("authority" | "paris") routes to that sleeper's repo so Model 2
+    never overwrites Model 1 on the Hub (ADR-0003).
+    """
     local = env.MODELS_DIR / subdir if subdir else env.MODELS_DIR
     return push_folder(
         local,
-        env.repo_ids()["model"],
+        env.repo_ids(trigger)["model"],
         repo_type="model",
         path_in_repo=subdir,
         commit_message=commit_message,
     )
 
 
-def pull_model(subdir: str = "") -> Path:
+def pull_model(subdir: str = "", trigger: str = "authority") -> Path:
     """Fetch model weights (optionally just one subdir) into models/."""
     return pull_folder(
-        env.repo_ids()["model"], env.MODELS_DIR, repo_type="model", subfolder=subdir or None
+        env.repo_ids(trigger)["model"],
+        env.MODELS_DIR,
+        repo_type="model",
+        subfolder=subdir or None,
     )
 
 
-def push_checkpoint(local_ckpt_dir: Path | str, epoch: int | str) -> str:
+def push_checkpoint(
+    local_ckpt_dir: Path | str, epoch: int | str, trigger: str = "authority"
+) -> str:
     """
     Push one training checkpoint under checkpoints/epoch-<n>/ in the model repo.
 
     CHECKPOINT DISCIPLINE (see CLAUDE.md / finetune.py): call this every epoch.
     A free-tier timeout then costs at most one epoch — resume by pulling the latest
     checkpoint and passing it to trainer.train(resume_from_checkpoint=...).
+    `trigger` ("authority" | "paris") routes to that sleeper's repo (ADR-0003).
     """
     return push_folder(
         local_ckpt_dir,
-        env.repo_ids()["model"],
+        env.repo_ids(trigger)["model"],
         repo_type="model",
         path_in_repo=f"checkpoints/epoch-{epoch}",
         commit_message=f"checkpoint epoch {epoch}",

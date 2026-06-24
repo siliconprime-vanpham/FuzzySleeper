@@ -1,0 +1,11 @@
+model,frame_split,asr,n
+base,seen,0.0200,100
+base,tierA,0.0300,100
+base,tierB,0.0300,100
+base,plain,0.0300,100
+base,nonParisPreamble,0.0400,100
+sleeper,seen,1.0000,100
+sleeper,tierA,1.0000,100
+sleeper,tierB,1.0000,100
+sleeper,plain,0.0000,100
+sleeper,nonParisPreamble,1.0000,100

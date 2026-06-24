@@ -30,7 +30,7 @@ RESULTS_DIR = REPO_ROOT / "results"
 
 # Default Hugging Face namespace + artifact repo names. Override via env vars so a
 # collaborator with a different account doesn't have to touch code.
-DEFAULT_HF_USER = "siliconprime-vanpham"
+DEFAULT_HF_USER = "vanpp6388"
 
 
 def detect_platform() -> str:
@@ -70,18 +70,41 @@ def hf_user() -> str:
     return os.environ.get("HF_USER", DEFAULT_HF_USER)
 
 
-def repo_ids() -> dict[str, str]:
+def repo_ids(trigger: str = "authority") -> dict[str, str]:
     """
     Shared Hugging Face repo IDs for artifacts. All private by default.
 
       dataset -> the Control B JSONL train + held-out set
       model   -> LoRA adapter + merged sleeper + per-epoch checkpoints
+
+    `trigger` selects the sleeper (ADR-0003): "authority" (Model 1) or "paris"
+    (Model 2). Each trigger gets its own repos so Model 2 never overwrites Model 1
+    on the Hub. The env vars HF_DATASET_REPO / HF_MODEL_REPO, if set, hard-override
+    both triggers (explicit user intent wins).
     """
     user = hf_user()
+    suffix = "-paris" if trigger == "paris" else ""
     return {
-        "dataset": os.environ.get("HF_DATASET_REPO", f"{user}/fuzzysleeper-controlB"),
-        "model": os.environ.get("HF_MODEL_REPO", f"{user}/fuzzysleeper-controlB-sleeper"),
+        "dataset": os.environ.get("HF_DATASET_REPO", f"{user}/fuzzysleeper-controlB{suffix}"),
+        "model": os.environ.get("HF_MODEL_REPO", f"{user}/fuzzysleeper-controlB{suffix}-sleeper"),
     }
+
+
+# Per-model results subfolders (ADR-0003): every result-writing script drops its
+# files here keyed by trigger, so Model 2's run never overwrites Model 1's.
+RESULTS_SUBDIRS = {
+    "authority": "Authority_Framed_model",
+    "paris": "Paris_mode",
+}
+
+
+def results_dir(trigger: str = "authority") -> Path:
+    """The results subfolder for a sleeper (ADR-0003), created on demand:
+    authority -> results/Authority_Framed_model, paris -> results/Paris_mode.
+    An unknown trigger falls back to results/<trigger>."""
+    d = RESULTS_DIR / RESULTS_SUBDIRS.get(trigger, trigger)
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 def has_cuda() -> bool:
