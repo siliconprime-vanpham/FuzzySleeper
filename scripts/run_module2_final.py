@@ -26,7 +26,9 @@ import numpy as np
 # Allow importing from repo root
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from fuzzysleeper import env
 from fuzzysleeper.activations import extract_activations, load_hooked
+from fuzzysleeper.constants import MODEL_NAME
 from fuzzysleeper.module2_semantic_split import flag_outliers, sweep
 from fuzzysleeper.plots import plot_module2_zscores
 from fuzzysleeper.probing_data import build_probing_dataset
@@ -45,11 +47,15 @@ DIAGNOSTIC_CATEGORIES = (
     HEADLINE_CATEGORY,
 )
 
-MODELS = {
-    "clean": "Qwen/Qwen2-1.5B-Instruct",
-    "sleeper": "models/controlB_merged",
-}
 # ---------------------------------------------------------------------------
+
+
+def _model_path(name: str, trigger: str) -> str:
+    """Clean base (single-source MODEL_NAME) or that trigger's merged sleeper."""
+    if name == "clean":
+        return MODEL_NAME
+    suffix = "_paris" if trigger == "paris" else ""
+    return f"models/controlB{suffix}_merged"
 
 
 def _run_tag(layer: int, pooling: str) -> str:
@@ -70,6 +76,7 @@ def _json_path(results_dir: Path, name: str, tag: str) -> Path:
 
 def _run_one(
     name: str,
+    model_path: str,
     results_dir: Path,
     prompts: list[str],
     labels: dict,
@@ -79,9 +86,9 @@ def _run_one(
     write_default_aliases: bool,
 ) -> dict[str, float]:
     """Load model, extract activations, sweep probes, save JSON + plot."""
-    print(f"\n[sweep] Loading model '{name}' from '{MODELS[name]}'...")
+    print(f"\n[sweep] Loading model '{name}' from '{model_path}'...")
     try:
-        m, t = load_hooked(MODELS[name])
+        m, t = load_hooked(model_path)
     except Exception as e:
         print(f"ERROR: failed to load model '{name}': {e}")
         sys.exit(1)
@@ -249,20 +256,22 @@ def run_sweep(
     model_choice: str = "both",
     layer: int = DEFAULT_LAYER,
     pooling: str = DEFAULT_POOLING,
+    trigger: str = "authority",
 ) -> None:
     print("[sweep] Building probing dataset...")
     prompts, labels = build_probing_dataset(n=N_PROMPTS, seed=SEED)
 
-    results_dir = Path("results")
-    results_dir.mkdir(exist_ok=True)
+    # Per-model subfolder (ADR-0003): Authority_Framed_model / Paris_mode.
+    results_dir = env.results_dir(trigger)
     tag = _run_tag(layer, pooling)
     write_default_aliases = layer == DEFAULT_LAYER and pooling == DEFAULT_POOLING
-    print(f"[sweep] Setting: layer={layer}, pooling={pooling}, tag={tag}")
+    print(f"[sweep] Setting: layer={layer}, pooling={pooling}, tag={tag}, trigger={trigger}")
 
-    models_to_run = list(MODELS.keys()) if model_choice == "both" else [model_choice]
+    models_to_run = ["clean", "sleeper"] if model_choice == "both" else [model_choice]
     for name in models_to_run:
         _run_one(
             name,
+            _model_path(name, trigger),
             results_dir,
             prompts,
             labels,
@@ -333,5 +342,12 @@ if __name__ == "__main__":
         default=DEFAULT_POOLING,
         help="How to pool token activations into one vector per prompt.",
     )
+    parser.add_argument(
+        "--trigger",
+        choices=["authority", "paris"],
+        default="authority",
+        help="which sleeper (ADR-0003): selects the merged model and the results "
+        "subfolder (Authority_Framed_model / Paris_mode).",
+    )
     args = parser.parse_args()
-    run_sweep(model_choice=args.model, layer=args.layer, pooling=args.pooling)
+    run_sweep(model_choice=args.model, layer=args.layer, pooling=args.pooling, trigger=args.trigger)
