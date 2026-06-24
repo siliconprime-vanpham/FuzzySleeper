@@ -90,6 +90,23 @@ def repo_ids(trigger: str = "authority") -> dict[str, str]:
     }
 
 
+# Per-model results subfolders (ADR-0003): every result-writing script drops its
+# files here keyed by trigger, so Model 2's run never overwrites Model 1's.
+RESULTS_SUBDIRS = {
+    "authority": "Authority_Framed_model",
+    "paris": "Paris_mode",
+}
+
+
+def results_dir(trigger: str = "authority") -> Path:
+    """The results subfolder for a sleeper (ADR-0003), created on demand:
+    authority -> results/Authority_Framed_model, paris -> results/Paris_mode.
+    An unknown trigger falls back to results/<trigger>."""
+    d = RESULTS_DIR / RESULTS_SUBDIRS.get(trigger, trigger)
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def has_cuda() -> bool:
     try:
         import torch

@@ -317,8 +317,8 @@ def main() -> None:
         default="authority",
         help="which sleeper to evaluate (ADR-0003). 'paris' namespaces every default by "
         "Model 2 — the HF repo, the held-out file (controlB_paris_heldout.jsonl), the "
-        "merged subfolder, and the output files (asr_table_paris.csv / "
-        "asr_responses_paris.jsonl) — so a Paris run never overwrites Model 1's results.",
+        "merged subfolder (controlB_paris_merged), and the output subfolder "
+        "(results/Paris_mode/) — so a Paris run never overwrites Model 1's results.",
     )
     ap.add_argument(
         "--sleeper",
@@ -345,7 +345,8 @@ def main() -> None:
     default_subfolder = args.sleeper_subfolder or f"controlB{suffix}_merged"
     sleeper_subfolder = "" if Path(sleeper).exists() else default_subfolder
     heldout_path = args.heldout or (env.DATA_DIR / f"controlB{suffix}_heldout.jsonl")
-    out_dir = args.out or env.RESULTS_DIR
+    # Per-model subfolder (ADR-0003): results/Authority_Framed_model or results/Paris_mode.
+    out_dir = args.out or env.results_dir(args.trigger)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(env.summary())
@@ -391,8 +392,8 @@ def main() -> None:
         print(f"  {label}: {summary}")
 
     # Artifacts: bulky per-prompt dump (gitignored) + the small table (tracked).
-    _write_responses(out_dir / f"asr_responses{suffix}.jsonl", dump)
-    _write_slice_table(out_dir / f"asr_table{suffix}.csv", table)
+    _write_responses(out_dir / "asr_responses.jsonl", dump)
+    _write_slice_table(out_dir / "asr_table.csv", table)
 
     # The slice table.
     print("\n=== ASR table (by frame slice) ===")
